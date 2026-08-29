@@ -1,3 +1,7 @@
+# Dev stack: both services run the same dev servers you'd run on the host
+# (nodemon/ts-node for BE, vite for FE), with the source bind-mounted so edits
+# reload live. There's no database service — BE/.env points DATABASE_URL at a
+# hosted Supabase instance, so the containers only need outbound network.
 services:
   backend:
     build:
@@ -5,26 +9,67 @@ services:
     env_file:
       - ./BE/.env
     environment:
+      # BE/Dockerfile's `EXPOSE 3000` is documentation only; the server reads
+      # PORT (src/server.ts). Set here so the published port, this value and
+      # the frontend's BACKEND_URL below can't drift apart — the drift that
+      # previously broke the Vite proxy.
       PORT: "8888"
     ports:
       - "8888:8888"
     volumes:
       - ./BE:/app
-      - /app/node_modules
-    command: sh -c "pnpm install && pnpm prisma generate && pnpm dev"
+      # Keeps the image's Linux-built dependencies (and the Prisma engines
+      # generated into node_modules/.prisma) from being shadowed by the host's
+      # macOS-built ./BE/node_modules that the bind mount above brings in.
+      - backend_node_modules:/app/node_modules
+    # No `command:` override — BE/Dockerfile's CMD already re-runs
+    # `prisma generate` (picking up schema edits from the bind mount) before
+    # `pnpm dev`. The old override also ran `pnpm install` on every start,
+    # which re-resolved dependencies into the volume behind the image's back.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8888/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      # First boot installs nothing but does run `prisma generate` and compile
+      # via ts-node, so give it room before failures start counting.
+      start_period: 60s
 
   frontend:
     build:
       context: ./FE
     environment:
+      # vite.config.ts reads this to point its /auth, /mail, /giphy, /user and
+      # /friends proxies at the backend. `backend` is the compose service name;
+      # 8888 matches PORT above.
       BACKEND_URL: http://backend:8888
     env_file:
+      # VITE_SUPABASE_* for the browser-side client. Optional so the stack can
+      # still come up in an FE-less/secret-less checkout.
       - path: ./FE/.env
         required: false
     ports:
       - "5173:5173"
     volumes:
       - ./FE:/app
-      - /app/node_modules
+      # As above: FE/Dockerfile installs with npm inside the image, and that
+      # tree must survive the source bind mount.
+      - frontend_node_modules:/app/node_modules
+    # FE/Dockerfile's CMD (`npm run dev` -> `vite --host`) already binds
+    # 0.0.0.0 and vite.config.ts pins port 5173 with strictPort, so the
+    # published port always matches what Supabase's OAuth redirect expects.
     depends_on:
-      - backend
+      backend:
+        # The Vite proxy has nothing to talk to until the backend is serving.
+        condition: service_healthy
+
+# Named rather than anonymous so `docker compose down -v` actually refreshes
+# them after a dependency change; anonymous volumes get silently reattached to
+# the new container and go stale.
+volumes:
+  backend_node_modules:
+  frontend_node_modules:
