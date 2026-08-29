@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 import { useSession } from './auth/useSession'
+import AddFriendDialog from './components/AddFriendDialog'
 import Header, { type Tab } from './components/Header'
 import Inbox from './components/Inbox'
+import Requests from './components/Requests'
+import { Toaster } from '@/components/ui/toast'
 import LetterCanvas from './components/LetterCanvas'
 import LetterPlayer from './components/LetterPlayer'
 import Login from './components/Login'
+import SetUsername from './components/SetUsername'
 import { encode } from './replay/codec'
 import type { Recording } from './replay/format'
-import { loadLetter, uploadRecording, type MailListItem } from './api'
+import { loadLetter, needsUsername, uploadRecording, type MailListItem } from './api'
 
-type Mode = 'inbox' | 'compose' | 'play' | 'loading' | 'load-error'
+type Mode = 'inbox' | 'compose' | 'requests' | 'play' | 'loading' | 'load-error'
 
 function letterIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get('letter')
@@ -23,7 +27,7 @@ function clearLetterParam() {
 }
 
 function App() {
-  const { status: sessionStatus, signOut } = useSession()
+  const { status: sessionStatus, user, setUser, backendError, signOut } = useSession()
   const [mode, setMode] = useState<Mode>(() => (letterIdFromUrl() ? 'loading' : 'inbox'))
   // Where the "back" action returns to once a letter finishes playing —
   // the inbox (viewed from the mail list / a shared link) or the composer
@@ -32,6 +36,7 @@ function App() {
   const [recording, setRecording] = useState<Recording | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [addFriendOpen, setAddFriendOpen] = useState(false)
 
   // Cross-client replay (IMPLEMENTATION_PLAN.md §4.1 step 1): a second
   // browser/tab opening this same URL fetches the gzipped recording over
@@ -138,7 +143,8 @@ function App() {
     setMode(tab)
   }, [])
 
-  const activeTab: Tab = mode === 'compose' ? 'compose' : mode === 'inbox' ? 'inbox' : returnTo
+  const activeTab: Tab =
+    mode === 'compose' || mode === 'inbox' || mode === 'requests' ? mode : returnTo
 
   if (sessionStatus === 'loading') {
     return <div className="centered-status">Loading…</div>
@@ -148,11 +154,33 @@ function App() {
     return <Login />
   }
 
+  // First login seeds `username` with the account's email
+  // (BE/src/controllers/auth/authController.ts) — hold the app behind the
+  // username picker until they've chosen a real one. `user` is null only
+  // while /auth/callback is still in flight.
+  if (user && needsUsername(user)) {
+    return <SetUsername user={user} onDone={setUser} onSignOut={signOut} />
+  }
+
   return (
+    <Toaster>
     <div id="app-shell">
-      <Header active={activeTab} onNavigate={handleNavigate} onSignOut={signOut} />
+      <Header
+        active={activeTab}
+        onNavigate={handleNavigate}
+        onAddFriend={() => setAddFriendOpen(true)}
+        onSignOut={signOut}
+      />
+      <AddFriendDialog open={addFriendOpen} onOpenChange={setAddFriendOpen} />
+      {backendError && (
+        <div className="backend-banner">
+          Signed in, but the backend didn't answer ({backendError}). Check that it's
+          running on the port in BE/.env.
+        </div>
+      )}
       <div id="whiteboard-container">
         {mode === 'inbox' && <Inbox onView={handleViewMail} />}
+        {mode === 'requests' && <Requests />}
         {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
         {mode === 'loading' && <div className="centered-status">Loading letter…</div>}
         {mode === 'load-error' && (
@@ -173,6 +201,7 @@ function App() {
         )}
       </div>
     </div>
+    </Toaster>
   )
 }
 

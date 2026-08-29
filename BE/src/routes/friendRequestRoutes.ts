@@ -4,7 +4,7 @@ import { getFriendRequests, sendFriendRequest, acceptFriendRequest, declineFrien
 const router = Router();
 
 router.get('/', getFriendRequests);
-router.post('/send', sendFriendRequest);
+router.post('/send/:username', sendFriendRequest);
 router.put('/:id/accept', acceptFriendRequest);
 router.put('/:id/decline', declineFriendRequest);
 

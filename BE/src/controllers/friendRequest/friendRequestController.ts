@@ -9,6 +9,7 @@ export async function getFriendRequests(req: Request, res: Response) {
 
     const friendRequests = await prisma.friendRequest.findMany({
         where: { recipientId: id },
+        include: { sender: { select: { id: true, username: true, email: true } } },
     });
     res.json(friendRequests);
 }

@@ -105,3 +105,116 @@ export async function fetchInbox(): Promise<MailListItem[]> {
   if (!res.ok) throw new Error(`Inbox fetch failed: ${res.status}`);
   return (await res.json()) as MailListItem[];
 }
+
+// --- User (BE/src/routes/mailUserRoutes.ts, mounted at /user) -----------
+
+/** The `user` object `POST /auth/callback` echoes back. On first login the
+ * backend seeds `username` with the email (authController.ts), which is the
+ * signal that the user still needs to pick one. */
+export interface AuthUser {
+  id: string;
+  email: string;
+  username: string;
+}
+
+/** A freshly created account has `username === email` — see
+ * BE/src/controllers/auth/authController.ts. */
+export function needsUsername(user: AuthUser): boolean {
+  return user.username === user.email;
+}
+
+export class UsernameTakenError extends Error {
+  constructor() {
+    super("That username is already taken.");
+    this.name = "UsernameTakenError";
+  }
+}
+
+export async function updateUsername(userId: string, username: string): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/user/${encodeURIComponent(userId)}/username`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ username }),
+  });
+  if (res.status === 409) throw new UsernameTakenError();
+  if (!res.ok) throw new Error(`Couldn't save username (${res.status})`);
+  return (await res.json()) as AuthUser;
+}
+
+// --- Friend requests (BE/src/routes/friendRequestRoutes.ts, mounted at
+// --- /friends behind `requireAuth`) ------------------------------------
+
+/** A row from `GET /friends`. The backend's `getFriendRequests` includes the
+ * `sender` relation so the list can show a name rather than a raw uuid. */
+export interface FriendRequestItem {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  sender: MailUserSummary;
+}
+
+/** Carries the backend's own `message` so the Add-friend toast can say which
+ * of the several 400s happened (already sent / sent to yourself / …) rather
+ * than collapsing them into one generic failure. */
+export class FriendRequestError extends Error {
+  // Declared rather than a `readonly` constructor parameter property:
+  // tsconfig.app.json turns on `erasableSyntaxOnly`, which rejects those.
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "FriendRequestError";
+    this.status = status;
+  }
+}
+
+/** The `{ message }` body every friendRequestController error path returns. */
+async function friendRequestError(res: Response, fallback: string): Promise<FriendRequestError> {
+  let message = fallback;
+  try {
+    const body = await res.json();
+    if (typeof body?.message === "string") message = body.message;
+  } catch {
+    // Non-JSON body (proxy error page, empty 502) — keep the fallback.
+  }
+  return new FriendRequestError(message, res.status);
+}
+
+/** Friend requests addressed to the signed-in user. */
+export async function fetchFriendRequests(signal?: AbortSignal): Promise<FriendRequestItem[]> {
+  const res = await fetch(`${API_BASE}/friends`, { signal, headers: await authHeaders() });
+  if (!res.ok) throw await friendRequestError(res, `Couldn't load friend requests (${res.status})`);
+  return (await res.json()) as FriendRequestItem[];
+}
+
+/**
+ * Look a username up and, if it exists, send it a friend request.
+ * The lookup and the send are the same call — `sendFriendRequest` resolves
+ * the username server-side and 404s when no such `MailUser` exists.
+ */
+export async function sendFriendRequest(username: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/friends/send/${encodeURIComponent(username)}`, {
+    method: "POST",
+    headers: await authHeaders(),
+  });
+  if (res.status === 404) {
+    throw new FriendRequestError(`No user found with the username "${username}".`, 404);
+  }
+  if (!res.ok) throw await friendRequestError(res, `Couldn't send the friend request (${res.status})`);
+}
+
+export async function acceptFriendRequest(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/friends/${encodeURIComponent(id)}/accept`, {
+    method: "PUT",
+    headers: await authHeaders(),
+  });
+  if (!res.ok) throw await friendRequestError(res, `Couldn't accept that request (${res.status})`);
+}
+
+export async function declineFriendRequest(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/friends/${encodeURIComponent(id)}/decline`, {
+    method: "PUT",
+    headers: await authHeaders(),
+  });
+  if (!res.ok) throw await friendRequestError(res, `Couldn't decline that request (${res.status})`);
+}
