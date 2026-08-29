@@ -59,6 +59,7 @@ export default defineConfig({
       '/recordings': BACKEND,
       '/mail': BACKEND,
       '/user': BACKEND,
+      '/friends': BACKEND,
     },
   },
 })

@@ -403,3 +403,23 @@ body {
   color: #92400e;
   text-align: center;
 }
+
+/* Requests page — reuses .inbox-page / .inbox-list / .inbox-row so the
+   friend-request list reads as the same kind of list as the inbox. */
+.requests-subtitle {
+  font: 13px system-ui, sans-serif;
+  color: #777;
+}
+
+.requests-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.requests-error-detail {
+  font: 13px system-ui, sans-serif;
+  color: #b91c1c;
+  max-width: 480px;
+  text-align: center;
+}
