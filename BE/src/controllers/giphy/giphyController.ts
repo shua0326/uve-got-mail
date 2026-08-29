@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
-import { TtlCache } from "../../services/ttlCache";
+import { TtlCache } from "../../cache/ttlCache";
 
-// IMPLEMENTATION_PLAN.md §6.4: hold the key server-side and cache searches —
-// a 100 req/hour beta key exhausts fast with several people typing in a demo.
 const ONE_HOUR_MS = 60 * 60 * 1000;
 const cache = new TtlCache<unknown>(ONE_HOUR_MS);
 

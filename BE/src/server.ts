@@ -2,9 +2,12 @@ import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
+import swaggerUi from "swagger-ui-express";
 import authRoutes from "./routes/authRoutes";
 import giphyRoutes from "./routes/giphyRoutes";
-import recordingRoutes from "./routes/recordingRoutes";
+import mailRoutes from "./routes/mailRoutes";
+import mailUserRoutes from "./routes/mailUserRoutes";
+import { openapiSpec } from "./docs/openapiSpec";
 
 dotenv.config();
 
@@ -22,9 +25,15 @@ app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
+app.get("/api-docs.json", (req: Request, res: Response) => {
+  res.json(openapiSpec);
+});
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
+
 app.use("/auth", authRoutes);
 app.use("/giphy", giphyRoutes);
-app.use("/recordings", recordingRoutes);
+app.use("/mail", mailRoutes);
+app.use("/user", mailUserRoutes);
 
 app.get("/login-test", (req: Request, res: Response) => {
   // helmet's default CSP blocks the esm.sh module import and inline <script> below
