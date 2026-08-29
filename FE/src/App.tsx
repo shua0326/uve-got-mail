@@ -1,21 +1,30 @@
 import { useCallback, useEffect, useState } from 'react'
-import './App.css'
 import { useSession } from './auth/useSession'
-import AddFriendDialog from './components/AddFriendDialog'
 import Header, { type Tab } from './components/Header'
 import Inbox from './components/Inbox'
 import Requests from './components/Requests'
 import SendLetterDialog from './components/SendLetterDialog'
-import { Toaster } from '@/components/ui/toast'
 import LetterCanvas from './components/LetterCanvas'
 import LetterPlayer from './components/LetterPlayer'
 import Login from './components/Login'
 import SetUsername from './components/SetUsername'
+import UserProfile from './components/UserProfile'
+import { Button } from './components/pouf/Button'
+import { ErrorNote, Skeleton } from './components/pouf/feedback'
+import { Row, Stack } from './components/pouf/layout'
+import { Card } from './components/pouf/surface'
+import { Toaster } from './components/pouf/toaster'
 import { encode } from './replay/codec'
 import type { Recording } from './replay/format'
 import { loadLetter, needsUsername, type MailListItem } from './api'
 
-type Mode = 'inbox' | 'compose' | 'requests' | 'play' | 'loading' | 'load-error'
+type Mode = Tab | 'play' | 'loading' | 'load-error'
+
+const TABS: Tab[] = ['inbox', 'compose', 'requests', 'profile']
+
+function isTab(mode: Mode): mode is Tab {
+  return (TABS as Mode[]).includes(mode)
+}
 
 function letterIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get('letter')
@@ -40,9 +49,7 @@ function App() {
   // its recipient are created by the same call — so the draft waits here
   // while the composer previews it and picks who it's for.
   const [draft, setDraft] = useState<Blob | null>(null)
-  const [sendOpen, setSendOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [addFriendOpen, setAddFriendOpen] = useState(false)
 
   // Cross-client replay (IMPLEMENTATION_PLAN.md §4.1 step 1): a second
   // browser/tab opening this same URL fetches the gzipped recording over
@@ -140,11 +147,14 @@ function App() {
     setMode(tab)
   }, [])
 
-  const activeTab: Tab =
-    mode === 'compose' || mode === 'inbox' || mode === 'requests' ? mode : returnTo
+  const activeTab: Tab = isTab(mode) ? mode : returnTo
 
   if (sessionStatus === 'loading') {
-    return <div className="centered-status">Loading…</div>
+    return (
+      <div className="page-center">
+        <Skeleton variant="card" />
+      </div>
+    )
   }
 
   if (sessionStatus === 'signed-out') {
@@ -160,56 +170,71 @@ function App() {
   }
 
   return (
-    <Toaster>
-    <div id="app-shell">
-      <Header
-        active={activeTab}
-        onNavigate={handleNavigate}
-        onAddFriend={() => setAddFriendOpen(true)}
-        onSignOut={signOut}
-      />
-      <AddFriendDialog open={addFriendOpen} onOpenChange={setAddFriendOpen} />
-      <SendLetterDialog
-        open={sendOpen}
-        onOpenChange={setSendOpen}
-        letter={draft}
-        onSent={() => {
-          setDraft(null)
-          handleNavigate('inbox')
-        }}
-      />
-      {backendError && (
-        <div className="backend-banner">
-          Signed in, but the backend didn't answer ({backendError}). Check that it's
-          running on the port in BE/.env.
+    <>
+      <div className="app-shell">
+        <Header active={activeTab} onNavigate={handleNavigate} onSignOut={signOut} />
+        {backendError && (
+          <ErrorNote>
+            Signed in, but the backend didn't answer ({backendError}). Check that it's
+            running on the port in BE/.env.
+          </ErrorNote>
+        )}
+        <div id="whiteboard-container">
+          {mode === 'inbox' && <Inbox onView={handleViewMail} />}
+          {mode === 'requests' && <Requests />}
+          {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
+          {mode === 'profile' && user && <UserProfile user={user} onUpdated={setUser} />}
+          {mode === 'loading' && (
+            <div className="stage-center">
+              <Skeleton variant="card" />
+            </div>
+          )}
+          {mode === 'load-error' && (
+            <div className="stage-center">
+              <Stack gap={4}>
+                <ErrorNote>{loadError}</ErrorNote>
+                <Button tone="purple" onClick={handleBack}>
+                  Back to inbox
+                </Button>
+              </Stack>
+            </div>
+          )}
+          {mode === 'play' && recording && (
+            <>
+              <LetterPlayer
+                recording={recording}
+                onBack={handleBack}
+                // The player is reached two ways, and its back button should
+                // say which one — "compose" is a lie when you arrived from
+                // the inbox or a shared ?letter= link.
+                backLabel={returnTo === 'compose' ? 'Back to compose' : 'Back to inbox'}
+              />
+              {draft && (
+                // Rendered only while a draft exists — which is exactly
+                // when its trigger button should be on screen. The dialog
+                // owns its own open state; App only owns the draft.
+                <div className="hud hud--top">
+                  <Card variant="tight">
+                    <Row gap={3} justify="center">
+                      <SendLetterDialog
+                        letter={draft}
+                        onSent={() => {
+                          setDraft(null)
+                          handleNavigate('inbox')
+                        }}
+                      />
+                    </Row>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      )}
-      <div id="whiteboard-container">
-        {mode === 'inbox' && <Inbox onView={handleViewMail} />}
-        {mode === 'requests' && <Requests />}
-        {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
-        {mode === 'loading' && <div className="centered-status">Loading letter…</div>}
-        {mode === 'load-error' && (
-          <div className="centered-status">
-            <p>{loadError}</p>
-            <button onClick={handleBack}>Back to inbox</button>
-          </div>
-        )}
-        {mode === 'play' && recording && (
-          <>
-            <LetterPlayer recording={recording} onBack={handleBack} />
-            {draft && (
-              <div className="share-banner">
-                <button type="button" className="send-draft-button" onClick={() => setSendOpen(true)}>
-                  Send this letter…
-                </button>
-              </div>
-            )}
-          </>
-        )}
       </div>
-    </div>
-    </Toaster>
+      {/* Pouf's Toaster is a sibling, not a wrapper: it renders its own fixed
+          viewport and takes no children. */}
+      <Toaster />
+    </>
   )
 }
 
