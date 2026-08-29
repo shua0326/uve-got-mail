@@ -18,7 +18,7 @@ datasource db {
 model MailUser {
   id            String @id
   email         String @unique
-  username      String @unique @default("")
+  username      String @unique
   friends       MailUser[] @relation("Friends")
   friendOf      MailUser[] @relation("Friends")
   sent          Mail[] @relation("sender")
