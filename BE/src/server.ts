@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import authRoutes from "./routes/authRoutes";
+import giphyRoutes from "./routes/giphyRoutes";
+import recordingRoutes from "./routes/recordingRoutes";
 
 dotenv.config();
 
@@ -11,13 +13,18 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(cors());
-app.use(helmet());
+// FE (Vite dev server) and BE run on different origins/ports; helmet's default
+// same-origin CORP header would block the FE from reading fetch() responses
+// (recordings, Giphy search) even though CORS allows the request itself.
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
 app.use("/auth", authRoutes);
+app.use("/giphy", giphyRoutes);
+app.use("/recordings", recordingRoutes);
 
 app.get("/login-test", (req: Request, res: Response) => {
   // helmet's default CSP blocks the esm.sh module import and inline <script> below
