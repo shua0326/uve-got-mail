@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { fetchFriends, findUserByUsername, sendLetter, type MailUserSummary } from "../api";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/toast";
+import { Button } from "./pouf/Button";
+import { Dialog } from "./pouf/controls";
+import { ErrorNote } from "./pouf/feedback";
+import { Field, Input } from "./pouf/Input";
+import { Stack } from "./pouf/layout";
+import { Separator } from "./pouf/separator";
+import { Eyebrow } from "./pouf/text";
+import { toast } from "./pouf/toaster";
 
 /**
  * Picks who a finished letter goes to, then posts it.
@@ -19,19 +17,21 @@ import { toast } from "@/components/ui/toast";
  * a typed username resolved through `GET /user/by-username/:username`.
  * Writing to a stranger is supported on purpose: `sendMail` befriends the
  * pair on their first letter.
+ *
+ * Owns its `open` state and renders its own trigger, for the reason given in
+ * AddFriendDialog: pouf's `Dialog` requires a real `trigger` element
+ * (DESIGN_MIGRATION_PLAN.md §4.2). The caller renders this where the "send"
+ * button belongs — which is only ever while a draft exists.
  */
 export default function SendLetterDialog({
-  open,
-  onOpenChange,
   letter,
   onSent,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   /** The gzipped recording to send, or null while one is still being encoded. */
   letter: Blob | null;
   onSent: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [friends, setFriends] = useState<MailUserSummary[]>([]);
   const [friendsError, setFriendsError] = useState<string | null>(null);
   const [username, setUsername] = useState("");
@@ -59,7 +59,7 @@ export default function SendLetterDialog({
       setUsername("");
       setSending(false);
     }
-    onOpenChange(next);
+    setOpen(next);
   }
 
   async function send(recipient: MailUserSummary) {
@@ -67,18 +67,14 @@ export default function SendLetterDialog({
     setSending(true);
     try {
       await sendLetter(recipient.id, letter);
-      toast.add({
-        type: "success",
-        title: "Letter sent",
+      toast.success("Letter sent", {
         description: `It'll reach ${recipient.username || recipient.email} at their next delivery.`,
       });
       handleOpenChange(false);
       onSent();
     } catch (err) {
       console.error("Failed to send letter", err);
-      toast.add({
-        type: "error",
-        title: "Couldn't send that letter",
+      toast.error("Couldn't send that letter", {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -93,9 +89,7 @@ export default function SendLetterDialog({
     try {
       const recipient = await findUserByUsername(trimmed);
       if (!recipient) {
-        toast.add({
-          type: "error",
-          title: "No such user",
+        toast.error("No such user", {
           description: `Nobody is using the username "${trimmed}".`,
         });
         return;
@@ -104,9 +98,7 @@ export default function SendLetterDialog({
       await send(recipient);
     } catch (err) {
       console.error("Failed to look that username up", err);
-      toast.add({
-        type: "error",
-        title: "Couldn't send that letter",
+      toast.error("Couldn't send that letter", {
         description: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -114,63 +106,86 @@ export default function SendLetterDialog({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Send your letter</DialogTitle>
-          <DialogDescription>
-            It won't arrive straight away — letters are delivered together at a random
-            time each day.
-          </DialogDescription>
-        </DialogHeader>
+  const hasFriends = friends.length > 0;
 
-        {friends.length > 0 && (
-          <div className="send-letter-friends">
-            {friends.map((friend) => (
-              <Button
-                key={friend.id}
-                variant="outline"
-                disabled={sending || !letter}
-                onClick={() => void send(friend)}
-              >
-                {friend.username || friend.email}
-              </Button>
-            ))}
-          </div>
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      trigger={
+        <Button size="sm" tone="mint">
+          Send this letter…
+        </Button>
+      }
+      title="Send your letter"
+      description="It won't arrive straight away — letters are delivered together at a random time each day."
+    >
+      <Stack gap={4}>
+        {hasFriends && (
+          <>
+            <Eyebrow>Your friends</Eyebrow>
+            <Stack gap={2}>
+              {friends.map((friend) => (
+                <Button
+                  key={friend.id}
+                  variant="quiet"
+                  block
+                  disabled={sending || !letter}
+                  onClick={() => void send(friend)}
+                >
+                  {friend.username || friend.email}
+                </Button>
+              ))}
+            </Stack>
+            <Separator />
+          </>
         )}
 
         {friendsError && (
-          <p className="send-letter-note">
-            Couldn't load your friends — send by username instead.
-          </p>
+          <ErrorNote>Couldn't load your friends — send by username instead.</ErrorNote>
         )}
 
         <form
-          className="grid gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             void sendToUsername();
           }}
         >
-          <Textarea
-            rows={2}
-            value={username}
-            placeholder="or send to a username"
-            disabled={sending}
-            onChange={(e) => setUsername(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void sendToUsername();
-              }
-            }}
-          />
-          <Button type="submit" disabled={sending || !letter || username.trim().length === 0}>
-            {sending ? "Sending…" : "Send"}
-          </Button>
+          <Stack gap={4}>
+            {/* The label carries the "or" that the old placeholder tried to,
+                which read as a dangling conjunction whenever the friends list
+                above it was empty. */}
+            <Field
+              label={hasFriends ? "Or send to a username" : "Send to a username"}
+              hint="Writing to someone new? Sending the letter makes you friends."
+            >
+              {(id, describedBy) => (
+                <Input
+                  id={id}
+                  describedBy={describedBy}
+                  value={username}
+                  onChange={setUsername}
+                  placeholder="username"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  disabled={sending}
+                />
+              )}
+            </Field>
+
+            <Button
+              type="submit"
+              block
+              tone="purple"
+              disabled={!letter || username.trim().length === 0}
+              loading={sending}
+            >
+              Send
+            </Button>
+          </Stack>
         </form>
-      </DialogContent>
+      </Stack>
     </Dialog>
   );
 }

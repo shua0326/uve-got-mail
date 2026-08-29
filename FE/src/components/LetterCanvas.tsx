@@ -3,6 +3,11 @@ import { Tldraw, type Editor, type TLUiOverrides } from 'tldraw'
 import { useRecorder } from '../replay/useRecorder'
 import type { Recording } from '../replay/format'
 import GifPicker from './GifPicker'
+import { Button } from './pouf/Button'
+import { Row } from './pouf/layout'
+import { Status } from './pouf/status'
+import { Card } from './pouf/surface'
+import { toast } from './pouf/toaster'
 
 const CAMERA_OPTIONS = {
   camera: {
@@ -51,29 +56,43 @@ export default function LetterCanvas({ onFinish }: { onFinish: (recording: Recor
   const handleFinish = useCallback(() => {
     const recording = finish()
     if (!recording) {
-      window.alert('Draw something first!')
+      // Was `window.alert`, which freezes the whole page — and a browser modal
+      // is a jarring thing to meet in the middle of drawing. A toast says the
+      // same thing without taking the canvas away.
+      toast.warning('Nothing to send yet', {
+        description: 'Draw something on the canvas first.',
+      })
       return
     }
     onFinish(recording)
   }, [finish, onFinish])
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div className="stage">
       <Tldraw
         options={CAMERA_OPTIONS}
         onMount={handleMount}
         components={COMPOSER_COMPONENTS}
         overrides={COMPOSER_OVERRIDES}
       />
-      <div className="recorder-hud">
-        <span className={`recorder-dot ${isRecording ? 'recorder-dot--live' : ''}`} />
-        <span>{isRecording ? `Recording — ${frameCount} frames` : 'Draw to start recording'}</span>
-        <button onClick={() => setPickerOpen((v) => !v)} disabled={!editor}>
-          {pickerOpen ? 'Close GIFs' : 'Add GIF/Sticker'}
-        </button>
-        <button className="recorder-finish-btn" onClick={handleFinish}>
-          Finish &amp; Preview Replay
-        </button>
+      {/* The HUD's absolute placement lives on this plain wrapper: pouf takes
+          no `style` or `className`, so the Card supplies the surface and the
+          div supplies the position. */}
+      <div className="hud hud--top">
+        <Card variant="tight">
+          <Row gap={3} align="center" wrap={false}>
+            <Status
+              label={isRecording ? `Recording — ${frameCount} frames` : 'Draw to start recording'}
+              tone={isRecording ? 'down' : 'idle'}
+            />
+            <Button size="sm" variant="quiet" disabled={!editor} onClick={() => setPickerOpen((v) => !v)}>
+              {pickerOpen ? 'Close GIFs' : 'Add GIF/Sticker'}
+            </Button>
+            <Button size="sm" tone="mint" onClick={handleFinish}>
+              Finish &amp; preview
+            </Button>
+          </Row>
+        </Card>
       </div>
       {pickerOpen && editor && <GifPicker editor={editor} onClose={() => setPickerOpen(false)} />}
     </div>

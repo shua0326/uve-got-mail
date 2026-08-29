@@ -1,30 +1,39 @@
 /**
- * Loaded after `tldraw/tldraw.css` and after `index.css` (which pulls in
- * Tailwind) — see main.tsx. Two jobs, in order:
+ * Loaded last — after `tldraw/tldraw.css`, `pouf.css` and `index.css` (see
+ * main.tsx). Two jobs, in order:
  *
- *   1. Undo the handful of Tailwind preflight rules tldraw doesn't defend
- *      itself against.
- *   2. Repoint tldraw's `--tl-color-*` tokens at this app's palette so the
- *      canvas UI matches everything around it.
+ *   1. Undo the handful of preflight rules tldraw doesn't defend itself
+ *      against.
+ *   2. Repoint tldraw's `--tl-color-*` tokens so the canvas chrome belongs to
+ *      the 1st-Pouf design system.
  */
 
 /* --- 1. Preflight guards -------------------------------------------------
  *
  * Tailwind v4 emits preflight into `@layer base`, and unlayered CSS always
  * outranks layered CSS — so tldraw already wins every property it sets
- * explicitly, and almost nothing needs doing here. The exceptions are
- * preflight's replaced-element rules, where tldraw leans on browser
- * defaults instead of declaring its own value:
+ * explicitly, and almost nothing needs doing here. The exceptions are the
+ * replaced-element rules, where tldraw leans on browser defaults instead of
+ * declaring its own value:
  *
  *   img, svg, video, canvas { display: block; vertical-align: middle }
  *   img, video              { max-width: 100% }
  *
- * tldraw absolutely positions images inside shapes at an explicit size, so
- * a 100% cap silently shrinks them at some zoom levels.
+ * tldraw absolutely positions images inside shapes at an explicit size, so a
+ * 100% cap silently shrinks them at some zoom levels.
  *
- * These live in `@layer base` on purpose. That's enough to beat preflight
- * (same layer, later in source order) while still losing to every unlayered
- * tldraw rule — so this can never override tldraw's own intentional layout.
+ * NOTE — pouf.css restates the same replaced-element reset in ITS `@layer
+ * base` (as `display: inline; vertical-align: baseline`, restoring the UA
+ * behaviour its design was measured against). That does not change the
+ * analysis below, and these rules are NOT redundant with it: `.tl-container
+ * :is(...)` is specificity (0,1,1) against pouf's (0,0,1), and specificity
+ * decides before source order within a layer. So tldraw's canvas keeps its
+ * own replaced-element behaviour no matter which stylesheet loads first.
+ * Deleting this block as "already handled" would break image shapes.
+ *
+ * They live in `@layer base` on purpose. That's enough to beat preflight
+ * while still losing to every unlayered tldraw rule — so this can never
+ * override tldraw's own intentional layout.
  */
 @layer base {
   .tl-container :is(img, svg, video, canvas) {
@@ -39,50 +48,56 @@
 
 /* --- 2. Theme tokens -----------------------------------------------------
  *
- * Values are the literals from index.css rather than `var(--bg)` etc. on
- * purpose: index.css swaps its palette on `prefers-color-scheme`, but
- * tldraw picks its theme from a class it controls. Wiring one to the other
- * gives you a light canvas in dark mode the moment they disagree, so each
- * tldraw theme pins the matching half of the palette outright.
+ * Pouf chrome, neutral drawing surface.
+ *
+ * The panels, toolbar, selection and focus ring take pouf's pastels so the
+ * canvas UI reads as part of the same app as the navbar and cards. The
+ * drawing surface itself deliberately does NOT: `--tl-color-background` stays
+ * near-white rather than becoming pouf's lavender `--bg`. A letter is
+ * somebody's drawing, often with a GIF dropped into it, and it has to read at
+ * full contrast — tinting the paper would push every stroke and sticker
+ * toward the same hue. The lavender surrounds the canvas; it doesn't get on
+ * it.
+ *
+ * `var()` is safe here where the previous version had to use literals: that
+ * comment existed because index.css swapped its palette on
+ * `prefers-color-scheme` while tldraw picks its theme from a class it
+ * controls, so the two could disagree and yield a light canvas in dark mode.
+ * The app is now light-only and pinned via <html data-theme="light">
+ * (DESIGN_MIGRATION_PLAN.md §0), so there is one palette and nothing to
+ * disagree about. `.tl-theme__dark` is gone for the same reason.
  */
 .tl-theme__light {
-  --tl-color-background: #fff;
-  --tl-color-panel: #fff;
-  --tl-color-panel-contrast: #fff;
-  --tl-color-low: #f4f3ec;
-  --tl-color-low-border: #e5e4e7;
-  --tl-color-divider: #e5e4e7;
-  --tl-color-hint: rgba(170, 59, 255, 0.08);
+  /* The paper — held neutral on purpose. */
+  --tl-color-background: #fbfaff;
+  --tl-color-panel: var(--surface);
+  --tl-color-panel-contrast: var(--surface);
+  --tl-color-low: var(--bg);
+  --tl-color-low-border: #e3d9fb;
+  --tl-color-divider: #e3d9fb;
+  --tl-color-hint: rgba(201, 168, 255, 0.22);
 
-  --tl-color-text: #08060d;
-  --tl-color-text-0: #08060d;
-  --tl-color-text-1: #6b6375;
-  --tl-color-text-3: #6b6375;
+  --tl-color-text: var(--ink);
+  --tl-color-text-0: var(--ink);
+  --tl-color-text-1: var(--muted);
+  --tl-color-text-3: var(--muted);
 
-  --tl-color-primary: #aa3bff;
-  --tl-color-selected: #aa3bff;
-  --tl-color-focus: #aa3bff;
-  --tl-color-selection-stroke: #aa3bff;
-  --tl-color-selection-fill: rgba(170, 59, 255, 0.1);
+  /* Selection and focus are the app's purple, so "this is selected" means the
+     same thing on the canvas as it does in the navbar. */
+  --tl-color-primary: var(--purple);
+  --tl-color-selected: var(--purple);
+  --tl-color-focus: var(--purple);
+  --tl-color-selection-stroke: var(--purple);
+  --tl-color-selection-fill: rgba(201, 168, 255, 0.18);
 }
 
-.tl-theme__dark {
-  --tl-color-background: #16171d;
-  --tl-color-panel: #1f2028;
-  --tl-color-panel-contrast: #2e303a;
-  --tl-color-low: #1f2028;
-  --tl-color-low-border: #2e303a;
-  --tl-color-divider: #2e303a;
-  --tl-color-hint: rgba(192, 132, 252, 0.12);
-
-  --tl-color-text: #f3f4f6;
-  --tl-color-text-0: #f3f4f6;
-  --tl-color-text-1: #9ca3af;
-  --tl-color-text-3: #9ca3af;
-
-  --tl-color-primary: #c084fc;
-  --tl-color-selected: #c084fc;
-  --tl-color-focus: #c084fc;
-  --tl-color-selection-stroke: #c084fc;
-  --tl-color-selection-fill: rgba(192, 132, 252, 0.15);
+/* pouf's global `:focus-visible { outline: 3px solid var(--ink) }` also
+ * applies inside the canvas. On tldraw's own toolbar buttons that's welcome —
+ * they're controls like any other. On the drawing surface it is not: the
+ * canvas takes focus as soon as you click it, and a 3px ring around the whole
+ * board (offset 3px, so it sits over the card's rounded corners) reads as an
+ * error state. tldraw draws its own focus affordances, so the outline is
+ * dropped for the canvas element alone. */
+.tl-container .tl-canvas:focus-visible {
+  outline: none;
 }
