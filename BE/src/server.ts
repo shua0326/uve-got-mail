@@ -52,7 +52,7 @@ app.use("/delivery", deliveryRoutes);
 // next day, so the normal schedule resumes from here. POST /delivery/run only
 // covers users who are already due; this is the one that forces the issue.
 // Same DELIVERY_SECRET guard — it delivers on behalf of every account.
-app.post("/sendNow", async (req: Request, res: Response) => {
+app.get("/sendNow", async (req: Request, res: Response) => {
   try {
     const report = await deliverAllMail();
     console.log(
