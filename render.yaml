@@ -3,12 +3,15 @@ services:
   # Runs the compiled `dist/server.js` (pnpm build -> tsc), which is lighter
   # on the free tier's 512MB/0.1 CPU instance than a Docker image running dev
   # tooling. Prisma's DB lives on Supabase, so no Render database is needed.
+  # Render's Node image already has corepack/pnpm enabled (package.json pins
+  # `packageManager: pnpm@10.12.1`) — don't run `corepack enable` here, it
+  # tries to re-symlink /usr/bin/pnpm and that dir is read-only at build time.
   - type: web
     name: uve-got-mail-backend
     runtime: node
     plan: free
     rootDir: BE
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm build
+    buildCommand: pnpm install --frozen-lockfile && pnpm prisma generate && pnpm build
     startCommand: pnpm start
     healthCheckPath: /health
     buildFilter:
