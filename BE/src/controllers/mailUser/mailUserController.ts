@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import prisma from "../../database/prisma";
+import { addFriend } from '../../utils/mailUserUtils';
 
-export const getMailUser = async (req: Request, res: Response) => {
+export async function getMailUser(req: Request, res: Response) {
     try {
         if (!req.params.id || typeof req.params.id !== 'string') {
             res.status(400).json({ message: "Mail user ID is required" });
@@ -20,7 +21,7 @@ export const getMailUser = async (req: Request, res: Response) => {
     }
 }
 
-export const setUsername = async (req: Request, res: Response) => {
+export async function setUsername(req: Request, res: Response) {
     try {
         if (!req.params.id || typeof req.params.id !== 'string') {
             res.status(400).json({ message: "Mail user ID is required" });

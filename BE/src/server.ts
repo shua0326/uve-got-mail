@@ -7,6 +7,7 @@ import authRoutes from "./routes/authRoutes";
 import giphyRoutes from "./routes/giphyRoutes";
 import mailRoutes from "./routes/mailRoutes";
 import mailUserRoutes from "./routes/mailUserRoutes";
+import friendRequestRoutes from "./routes/friendRequestRoutes";
 import { openapiSpec } from "./docs/openapiSpec";
 
 dotenv.config();
@@ -34,6 +35,8 @@ app.use("/auth", authRoutes);
 app.use("/giphy", giphyRoutes);
 app.use("/mail", mailRoutes);
 app.use("/user", mailUserRoutes);
+app.use("/friends", friendRequestRoutes);
+
 
 app.get("/login-test", (req: Request, res: Response) => {
   // helmet's default CSP blocks the esm.sh module import and inline <script> below
