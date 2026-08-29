@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from "../../database/prisma";
+import { firstDeliveryTime } from "../../services/deliveryService";
 
 export async function handleSocialAuthCallback(req: Request, res: Response): Promise<void> {
 
@@ -16,11 +17,26 @@ export async function handleSocialAuthCallback(req: Request, res: Response): Pro
             return;
         }
 
-        const dbUser = await prisma.mailUser.upsert({
+        let dbUser = await prisma.mailUser.upsert({
             where: { id: user.id },
             update: {},
-            create: { id: user.id, email: email, username: email }
+            create: {
+                id: user.id,
+                email: email,
+                username: email,
+                scheduledMail: firstDeliveryTime(),
+            }
         });
+
+        // Accounts created before scheduled delivery existed have a null
+        // `scheduledMail` and would never be picked up by the delivery pass.
+        // Backfill on sign-in rather than in a one-off migration.
+        if (!dbUser.scheduledMail) {
+            dbUser = await prisma.mailUser.update({
+                where: { id: dbUser.id },
+                data: { scheduledMail: firstDeliveryTime() },
+            });
+        }
 
         req.dbUser = dbUser;
         

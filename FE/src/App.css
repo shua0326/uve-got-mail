@@ -85,47 +85,40 @@ body {
   position: relative;
 }
 
-.inbox-page {
+.inbox-gallery {
   width: 100%;
   height: 100%;
-  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
   box-sizing: border-box;
   padding: 20px;
-  text-align: left;
 }
 
-.inbox-mock-banner {
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: #fff8e1;
-  border: 1px solid #f0d878;
-  border-radius: 8px;
-  font: 13px system-ui, sans-serif;
-  color: #7a5c00;
-}
-
-.inbox-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.inbox-letter-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 14px;
+  min-width: min(360px, 70vw);
+  padding: 32px 40px;
+  border: 1px solid #e5e4e7;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  text-align: center;
 }
 
-.inbox-row {
+.inbox-letter-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
-  border: 1px solid #e5e4e7;
-  border-radius: 10px;
-  background: #fff;
 }
 
 .inbox-sender-name {
   font-weight: 600;
-  flex: 1;
+  font-size: 20px;
   color: #222;
 }
 
@@ -137,18 +130,28 @@ body {
   border-radius: 999px;
 }
 
-.inbox-view-button {
-  border: 1px solid #ddd;
-  background: #f4f3ec;
-  color: #222;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
+.inbox-letter-date {
   font: 13px system-ui, sans-serif;
+  color: #777;
 }
 
-.inbox-view-button:hover {
-  background: #eee;
+.inbox-letter-position {
+  margin: 0;
+  font: 12px system-ui, sans-serif;
+  color: #999;
+}
+
+.inbox-error-detail {
+  font: 13px system-ui, sans-serif;
+  color: #b91c1c;
+  max-width: 480px;
+  text-align: center;
+}
+
+.inbox-empty-hint {
+  margin: 0;
+  font: 13px system-ui, sans-serif;
+  color: #888;
 }
 
 .recorder-hud,
@@ -422,4 +425,30 @@ body {
   color: #b91c1c;
   max-width: 480px;
   text-align: center;
+}
+
+.send-draft-button {
+  border: 1px solid #aa3bff;
+  background: #aa3bff;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font: 13px system-ui, sans-serif;
+}
+
+.send-draft-button:hover {
+  background: #9333ea;
+}
+
+.send-letter-friends {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.send-letter-note {
+  margin: 0;
+  font: 12px system-ui, sans-serif;
+  color: #92400e;
 }

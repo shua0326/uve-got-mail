@@ -11,12 +11,19 @@ export async function getNewMail(req: Request, res: Response) {
             return res.status(401).json({ error: "Unauthorized" });
         }
         
+        // `received` is the delivery window: the scheduled-delivery service
+        // flips it on for the batch due at the recipient's `scheduledMail`
+        // time. Read mail stays in the list — a delivered letter is
+        // re-readable until the next delivery replaces the batch — so this
+        // deliberately does NOT filter on `read`.
         const mail = await prisma.mail.findMany({
             where: {
                 recipientId: userId,
-                read: false,
-                received: true
+                received: true,
+                archived: false
             },
+            include: { sender: { select: { id: true, username: true, email: true } } },
+            orderBy: { sentAt: 'asc' },
         });
         return res.status(200).json(mail);
     } catch (error) {
@@ -76,6 +83,43 @@ export async function getMail(req: Request, res: Response): Promise<void> {
     }
     res.setHeader("Content-Type", "application/octet-stream");
     res.send(record.data);
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+export async function markMailRead(req: Request, res: Response): Promise<void> {
+  try {
+    const userId = req.dbUser?.id;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    // Mail.id is an autoincrementing Int, not a uuid like the other routes.
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Mail id must be an integer" });
+      return;
+    }
+
+    const mail = await prisma.mail.findUnique({ where: { id } });
+    if (!mail) {
+      res.status(404).json({ error: "Mail not found" });
+      return;
+    }
+
+    // Only the recipient may mark their own mail read.
+    if (mail.recipientId !== userId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const updated = await prisma.mail.update({
+      where: { id },
+      data: { read: true },
+    });
+    res.status(200).json({ id: updated.id, read: updated.read });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }

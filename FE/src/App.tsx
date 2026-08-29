@@ -5,6 +5,7 @@ import AddFriendDialog from './components/AddFriendDialog'
 import Header, { type Tab } from './components/Header'
 import Inbox from './components/Inbox'
 import Requests from './components/Requests'
+import SendLetterDialog from './components/SendLetterDialog'
 import { Toaster } from '@/components/ui/toast'
 import LetterCanvas from './components/LetterCanvas'
 import LetterPlayer from './components/LetterPlayer'
@@ -12,7 +13,7 @@ import Login from './components/Login'
 import SetUsername from './components/SetUsername'
 import { encode } from './replay/codec'
 import type { Recording } from './replay/format'
-import { loadLetter, needsUsername, uploadRecording, type MailListItem } from './api'
+import { loadLetter, needsUsername, type MailListItem } from './api'
 
 type Mode = 'inbox' | 'compose' | 'requests' | 'play' | 'loading' | 'load-error'
 
@@ -34,7 +35,12 @@ function App() {
   // (just-finished draft preview).
   const [returnTo, setReturnTo] = useState<Tab>('inbox')
   const [recording, setRecording] = useState<Recording | null>(null)
-  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  // The just-composed letter, gzipped and ready to post. Held rather than
+  // sent immediately: there is no recipient-less upload route — a letter and
+  // its recipient are created by the same call — so the draft waits here
+  // while the composer previews it and picks who it's for.
+  const [draft, setDraft] = useState<Blob | null>(null)
+  const [sendOpen, setSendOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [addFriendOpen, setAddFriendOpen] = useState(false)
 
@@ -89,7 +95,7 @@ function App() {
     setRecording(rec)
     setReturnTo('compose')
     setMode('play')
-    setShareUrl(null)
+    setDraft(null)
 
     // Step 3.4 measurement gate (IMPLEMENTATION_PLAN.md §3.4): log recording
     // size so it's easy to see whether bucketing/stripping/gzip are enough.
@@ -99,23 +105,14 @@ function App() {
       `[recording] frames=${rec.frames.length} keyframes=${rec.keyframes.length} ` +
         `durationMs=${rec.durationMs} raw=${(raw.length / 1024).toFixed(1)}KB gzip=${(gz.size / 1024).toFixed(1)}KB`,
     )
-
-    try {
-      const id = await uploadRecording(gz)
-      const url = new URL(window.location.href)
-      url.searchParams.set('letter', id)
-      window.history.replaceState({}, '', url)
-      setShareUrl(url.toString())
-    } catch (err) {
-      console.error('Recording upload failed', err)
-    }
+    setDraft(gz)
   }, [])
 
   const handleViewMail = useCallback((mail: MailListItem) => {
-    setShareUrl(null)
+    setDraft(null)
     setReturnTo('inbox')
     setMode('loading')
-    loadLetter(mail.content)
+    loadLetter(mail.recordingId)
       .then((rec) => {
         setRecording(rec)
         setMode('play')
@@ -130,7 +127,7 @@ function App() {
   const handleBack = useCallback(() => {
     clearLetterParam()
     setRecording(null)
-    setShareUrl(null)
+    setDraft(null)
     setLoadError(null)
     setMode(returnTo)
   }, [returnTo])
@@ -138,7 +135,7 @@ function App() {
   const handleNavigate = useCallback((tab: Tab) => {
     clearLetterParam()
     setRecording(null)
-    setShareUrl(null)
+    setDraft(null)
     setLoadError(null)
     setMode(tab)
   }, [])
@@ -172,6 +169,15 @@ function App() {
         onSignOut={signOut}
       />
       <AddFriendDialog open={addFriendOpen} onOpenChange={setAddFriendOpen} />
+      <SendLetterDialog
+        open={sendOpen}
+        onOpenChange={setSendOpen}
+        letter={draft}
+        onSent={() => {
+          setDraft(null)
+          handleNavigate('inbox')
+        }}
+      />
       {backendError && (
         <div className="backend-banner">
           Signed in, but the backend didn't answer ({backendError}). Check that it's
@@ -192,9 +198,11 @@ function App() {
         {mode === 'play' && recording && (
           <>
             <LetterPlayer recording={recording} onBack={handleBack} />
-            {shareUrl && (
+            {draft && (
               <div className="share-banner">
-                Open on another client: <code>{shareUrl}</code>
+                <button type="button" className="send-draft-button" onClick={() => setSendOpen(true)}>
+                  Send this letter…
+                </button>
               </div>
             )}
           </>

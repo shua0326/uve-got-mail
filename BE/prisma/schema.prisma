@@ -42,7 +42,11 @@ model Mail {
   id          Int      @id @default(autoincrement())
   sentAt      DateTime @default(now())
   read        Boolean  @default(false)
+  // `received` is flipped on by the delivery service at the recipient's
+  // `scheduledMail` time; `archived` retires the previous batch when the next
+  // one lands. The inbox window is `received && !archived`.
   received    Boolean  @default(false)
+  archived    Boolean  @default(false)
 
   senderId    String
   sender      MailUser     @relation("sender", fields: [senderId], references: [id])
