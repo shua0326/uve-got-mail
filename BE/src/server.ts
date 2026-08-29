@@ -8,7 +8,10 @@ import giphyRoutes from "./routes/giphyRoutes";
 import mailRoutes from "./routes/mailRoutes";
 import mailUserRoutes from "./routes/mailUserRoutes";
 import friendRequestRoutes from "./routes/friendRequestRoutes";
+import deliveryRoutes from "./routes/deliveryRoutes";
 import { requireAuth } from "./middlewares/authMiddleware";
+import { deliverDueMail } from "./services/deliveryService";
+import cron from "node-cron";
 import { openapiSpec } from "./docs/openapiSpec";
 
 dotenv.config();
@@ -34,10 +37,14 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
 app.use("/auth", authRoutes);
 app.use("/giphy", giphyRoutes);
-app.use("/mail", mailRoutes);
+// mailController reads req.dbUser, which only requireAuth populates. The
+// OpenAPI spec already declares bearerAuth on these routes.
+app.use("/mail", requireAuth, mailRoutes);
 app.use("/user", mailUserRoutes);
 // friendRequestController reads req.dbUser, which only requireAuth populates.
 app.use("/friends", requireAuth, friendRequestRoutes);
+// Guarded by DELIVERY_SECRET rather than a user token — it runs as the system.
+app.use("/delivery", deliveryRoutes);
 
 
 app.get("/login-test", (req: Request, res: Response) => {
@@ -111,5 +118,27 @@ app.get("/login-test", (req: Request, res: Response) => {
 </body>
 </html>`);
 });
+
+// Scheduled delivery. Every minute is fine: `deliverDueMail` only touches
+// users whose `scheduledMail` has passed, and delivering rolls that forward,
+// so a pass with nothing due is two indexed queries. `noOverlap` keeps a slow
+// pass from being re-entered. Note this runs per process — scaling the
+// backend to multiple instances would need node-cron's `distributed` mode.
+cron.schedule(
+  "* * * * *",
+  async () => {
+    try {
+      const report = await deliverDueMail();
+      if (report.delivered > 0 || report.archived > 0) {
+        console.log(
+          `[delivery] ${report.users} user(s): delivered ${report.delivered}, archived ${report.archived}`
+        );
+      }
+    } catch (err) {
+      console.error("[delivery] scheduled pass failed:", err);
+    }
+  },
+  { name: "mail-delivery", noOverlap: true }
+);
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

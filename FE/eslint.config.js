@@ -19,4 +19,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // shadcn generates these verbatim (`npx shadcn add ...`) and they pair a
+    // component with its variants/manager exports by design. Editing them to
+    // satisfy react-refresh would be undone by the next regeneration.
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

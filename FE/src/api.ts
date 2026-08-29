@@ -1,6 +1,5 @@
 import { decode } from "./replay/codec";
 import type { Recording } from "./replay/format";
-import { SAMPLE_RECORDING, SAMPLE_RECORDING_ID } from "./data/sampleRecording";
 import { supabase } from "./lib/supabaseClient";
 
 // Relative — routed through Vite's dev proxy (vite.config.ts) so requests
@@ -48,41 +47,52 @@ export async function searchGiphy(
   return (body.data ?? []) as GiphyResult[];
 }
 
-export async function uploadRecording(blob: Blob): Promise<string> {
-  const res = await fetch(`${API_BASE}/recordings`, {
+/**
+ * Send a composed letter. There is no standalone recording upload on the
+ * backend: `POST /mail/:recipientId` takes the gzipped bytes as the body and
+ * saves the Recording *and* the Mail row in one call
+ * (BE/src/controllers/mail/mailController.ts `sendMail`), answering with the
+ * new mail's id.
+ */
+export async function sendLetter(recipientId: string, blob: Blob): Promise<number> {
+  const res = await fetch(`${API_BASE}/mail/${encodeURIComponent(recipientId)}`, {
     method: "POST",
     headers: { "Content-Type": "application/octet-stream", ...(await authHeaders()) },
     body: blob,
   });
-  if (!res.ok) throw new Error(`Recording upload failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Sending the letter failed (${res.status})`);
   const { id } = await res.json();
-  return id as string;
+  return id as number;
 }
 
-export async function fetchRecording(id: string, signal?: AbortSignal): Promise<ArrayBuffer> {
-  const res = await fetch(`${API_BASE}/recordings/${id}`, { signal, headers: await authHeaders() });
+/**
+ * Download a letter's gzipped bytes. The path parameter is the **Recording**
+ * id (`Mail.recordingId`), not the mail's own id — `getMail` looks the row up
+ * with `getRecording(id)`.
+ */
+export async function fetchRecording(recordingId: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const res = await fetch(`${API_BASE}/mail/${encodeURIComponent(recordingId)}`, {
+    signal,
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error(`Recording fetch failed: ${res.status}`);
   return res.arrayBuffer();
 }
 
-/** Fetch + gunzip + parse a recording in one step. */
-export async function loadLetter(id: string, signal?: AbortSignal): Promise<Recording> {
-  // The inbox's mock-data fallback (§14) points at a bundled fixture rather
-  // than a real uploaded recording — serve it locally instead of hitting a
-  // /recordings id that was never uploaded and will always 404.
-  if (id === SAMPLE_RECORDING_ID) return SAMPLE_RECORDING;
-  const buf = await fetchRecording(id, signal);
+/** Fetch + gunzip + parse a letter in one step. */
+export async function loadLetter(recordingId: string, signal?: AbortSignal): Promise<Recording> {
+  const buf = await fetchRecording(recordingId, signal);
   return decode(buf);
 }
 
-// --- Mail (IMPLEMENTATION_PLAN.md §6.3 / §8) ---------------------------
+// --- Mail (BE/src/routes/mailRoutes.ts, mounted at /mail behind requireAuth)
 //
-// The backend does not yet expose /mail routes (only Prisma's `Mail` /
-// `MailUser` models exist — see prisma/schema.prisma). This client is
-// written against the contract that model implies so the inbox works the
-// moment the route lands: `requireAuth`, returns mail addressed to the
-// caller with the sender relation included. `Mail` has no timestamp field,
-// so recency is inferred from the autoincrementing `id`.
+// `GET /mail` returns the current *delivery window*: every letter addressed to
+// the caller with `received: true`. The scheduled-delivery service flips that
+// flag for the batch due at the recipient's `MailUser.scheduledMail` time, and
+// the batch stays readable — and re-readable — until the next delivery
+// replaces it. Read letters are therefore still in the list; `read` only
+// drives the unread badge.
 
 export interface MailUserSummary {
   id: string;
@@ -90,20 +100,35 @@ export interface MailUserSummary {
   email: string;
 }
 
+/** A row from `GET /mail` — Prisma's `Mail` plus the included `sender`. */
 export interface MailListItem {
   id: number;
-  content: string; // recording id (see IMPLEMENTATION_PLAN.md — Mail.content
-                    // is the natural home for this until a dedicated
-                    // recording relation exists on Mail)
+  sentAt: string;
   read: boolean;
   received: boolean;
+  senderId: string;
+  recipientId: string;
+  historyId: string;
+  /** Points at the `Recording` row; pass it to `loadLetter`, not `id`. */
+  recordingId: string;
   sender: MailUserSummary;
 }
 
-export async function fetchInbox(): Promise<MailListItem[]> {
-  const res = await fetch(`${API_BASE}/mail/inbox`, { headers: await authHeaders() });
+/** The letters delivered in the caller's current window, oldest first. */
+export async function fetchInbox(signal?: AbortSignal): Promise<MailListItem[]> {
+  const res = await fetch(`${API_BASE}/mail`, { signal, headers: await authHeaders() });
   if (!res.ok) throw new Error(`Inbox fetch failed: ${res.status}`);
   return (await res.json()) as MailListItem[];
+}
+
+/** Marks one letter read. The letter stays in the window either way — this
+ * only clears its unread badge. */
+export async function markMailRead(mailId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/mail/${mailId}/read`, {
+    method: "PUT",
+    headers: await authHeaders(),
+  });
+  if (!res.ok) throw new Error(`Couldn't mark that letter read (${res.status})`);
 }
 
 // --- User (BE/src/routes/mailUserRoutes.ts, mounted at /user) -----------
@@ -139,6 +164,25 @@ export async function updateUsername(userId: string, username: string): Promise<
   if (res.status === 409) throw new UsernameTakenError();
   if (!res.ok) throw new Error(`Couldn't save username (${res.status})`);
   return (await res.json()) as AuthUser;
+}
+
+/** Resolves a typed username to the id `sendLetter` needs.
+ * `GET /user/by-username/:username` — 404 when nobody has that name. */
+export async function findUserByUsername(username: string): Promise<MailUserSummary | null> {
+  const res = await fetch(`${API_BASE}/user/by-username/${encodeURIComponent(username)}`, {
+    headers: await authHeaders(),
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Couldn't look that username up (${res.status})`);
+  return (await res.json()) as MailUserSummary;
+}
+
+/** The signed-in user's friends, for the compose recipient picker.
+ * `GET /user/me/friends` unions both sides of the friends self-relation. */
+export async function fetchFriends(signal?: AbortSignal): Promise<MailUserSummary[]> {
+  const res = await fetch(`${API_BASE}/user/me/friends`, { signal, headers: await authHeaders() });
+  if (!res.ok) throw new Error(`Couldn't load your friends (${res.status})`);
+  return (await res.json()) as MailUserSummary[];
 }
 
 // --- Friend requests (BE/src/routes/friendRequestRoutes.ts, mounted at

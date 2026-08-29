@@ -23,12 +23,27 @@ export function useSession() {
   const [status, setStatus] = useState<SessionStatus>("loading");
   const [backendError, setBackendError] = useState<string | null>(null);
   const verifiedFor = useRef<string | null>(null);
+  // `getSession()` and `onAuthStateChange`'s initial event both land here,
+  // so without this the very first sign-in fires two concurrent
+  // POST /auth/callback requests. `verifiedFor` can't stop them — it is only
+  // set once a response comes back, by which time both are already in flight.
+  const inFlight = useRef<Map<string, Promise<void>>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
 
-    async function verifyWithBackend(next: Session) {
-      if (verifiedFor.current === next.user.id) return;
+    function verifyWithBackend(next: Session): Promise<void> {
+      if (verifiedFor.current === next.user.id) return Promise.resolve();
+      const pending = inFlight.current.get(next.user.id);
+      if (pending) return pending;
+      const run = verifyOnce(next).finally(() => {
+        inFlight.current.delete(next.user.id);
+      });
+      inFlight.current.set(next.user.id, run);
+      return run;
+    }
+
+    async function verifyOnce(next: Session) {
       try {
         const res = await fetch("/auth/callback", {
           method: "POST",
