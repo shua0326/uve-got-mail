@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/auth/:path*",    "destination": "https://uve-got-mail-backend-v7hh.onrender.com/auth/:path*" },
+    { "source": "/giphy/:path*",   "destination": "https://uve-got-mail-backend-v7hh.onrender.com/giphy/:path*" },
+    { "source": "/mail/:path*",    "destination": "https://uve-got-mail-backend-v7hh.onrender.com/mail/:path*" },
+    { "source": "/user/:path*",    "destination": "https://uve-got-mail-backend-v7hh.onrender.com/user/:path*" },
+    { "source": "/friends/:path*", "destination": "https://uve-got-mail-backend-v7hh.onrender.com/friends/:path*" },
+    { "source": "/mail",           "destination": "https://uve-got-mail-backend-v7hh.onrender.com/mail" },
+    { "source": "/friends",        "destination": "https://uve-got-mail-backend-v7hh.onrender.com/friends" },
+    { "source": "/(.*)",           "destination": "/index.html" }
+  ]
+}
