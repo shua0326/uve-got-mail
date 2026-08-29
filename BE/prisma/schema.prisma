@@ -16,14 +16,26 @@ datasource db {
 }
 
 model MailUser {
-  id            String @id
-  email         String @unique
-  username      String @unique @default("")
-  friends       MailUser[] @relation("Friends")
-  friendOf      MailUser[] @relation("Friends")
-  sent          Mail[] @relation("sender")
-  received      Mail[] @relation("recipient")
-  scheduledMail DateTime?
+  id                     String @id
+  email                  String @unique
+  username               String @unique
+  friends                MailUser[] @relation("Friends")
+  friendOf               MailUser[] @relation("Friends")
+  sent                   Mail[] @relation("sender")
+  received               Mail[] @relation("recipient")
+  sentFriendRequests     FriendRequest[] @relation("requestSender")
+  receivedFriendRequests FriendRequest[] @relation("requestRecipient")
+  scheduledMail          DateTime?
+}
+
+model FriendRequest {
+  id            String   @id @default(uuid())
+  senderId      String
+  sender        MailUser @relation("requestSender", fields: [senderId], references: [id])
+  recipientId   String
+  recipient     MailUser @relation("requestRecipient", fields: [recipientId], references: [id])
+
+  @@unique([senderId, recipientId])
 }
 
 model Mail {

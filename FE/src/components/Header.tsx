@@ -1,12 +1,14 @@
-export type Tab = "inbox" | "compose";
+export type Tab = "inbox" | "compose" | "requests";
 
 export default function Header({
   active,
   onNavigate,
+  onAddFriend,
   onSignOut,
 }: {
   active: Tab;
   onNavigate: (tab: Tab) => void;
+  onAddFriend: () => void;
   onSignOut: () => void;
 }) {
   return (
@@ -26,6 +28,18 @@ export default function Header({
           onClick={() => onNavigate("compose")}
         >
           Compose
+        </button>
+        <button
+          type="button"
+          className={`app-header-tab ${active === "requests" ? "active" : ""}`}
+          onClick={() => onNavigate("requests")}
+        >
+          Requests
+        </button>
+        {/* Not a tab — opens the add-a-friend modal over whatever page is
+            currently showing. */}
+        <button type="button" className="app-header-tab" onClick={onAddFriend}>
+          Add
         </button>
         <button type="button" onClick={onSignOut}>
           Sign out

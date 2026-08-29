@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./BE
+    env_file:
+      - ./BE/.env
+    environment:
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./BE:/app
+      - /app/node_modules
+    command: sh -c "pnpm prisma generate && pnpm dev"
+
+  frontend:
+    build:
+      context: ./FE
+    environment:
+      BACKEND_URL: http://backend:3000
+    env_file:
+      - path: ./FE/.env
+        required: false
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./FE:/app
+      - /app/node_modules
+    depends_on:
+      - backend

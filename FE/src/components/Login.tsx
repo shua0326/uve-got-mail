@@ -9,10 +9,16 @@ import { supabase } from "../lib/supabaseClient";
 export default function Login() {
   const continueWithGoogle = () => {
     supabase.auth.signInWithOAuth({
-      // Matches the known-working BE/src/server.ts `/login-test` page, which
-      // uses the exact current URL rather than the bare origin.
       provider: "google",
-      options: { redirectTo: window.location.href },
+      options: {
+        // The bare origin, not window.location.href: Supabase only returns to
+        // URLs matching its redirect allowlist, and href drags along whatever
+        // query string is on the page (`?letter=...`), which won't match the
+        // registered entry. http://localhost:5173 must be allowlisted under
+        // Authentication > URL Configuration in the Supabase dashboard.
+        redirectTo: window.location.origin,
+        queryParams: { prompt: "select_account" },
+      },
     });
   };
 
