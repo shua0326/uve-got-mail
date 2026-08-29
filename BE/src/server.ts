@@ -2,45 +2,93 @@ import express, { Request, Response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
-import cookieParser from "cookie-parser";
-import http from "http";
+import authRoutes from "./routes/authRoutes";
 
 dotenv.config();
 
 const app = express();
-app.set("trust proxy", 1);
-const PORT = process.env.PORT || 8888;
-app.disable("x-powered-by");
+const PORT = process.env.PORT || 3000;
 
-app.use(cookieParser());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-app.use(helmet());
 app.use(cors());
-
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP
-  message: "Too many requests, please try again later.",
-});
-app.use(limiter);
+app.use(helmet());
 
 app.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "ok" });
 });
 
-const server = http.createServer(app).listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.use("/auth", authRoutes);
+
+app.get("/login-test", (req: Request, res: Response) => {
+  // helmet's default CSP blocks the esm.sh module import and inline <script> below
+  res.removeHeader("Content-Security-Policy");
+
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
+
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    res
+      .status(500)
+      .send("Set SUPABASE_URL and SUPABASE_ANON_KEY in .env, then reload this page.");
+    return;
+  }
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head><title>Login Test</title></head>
+<body>
+  <h1>Login Test</h1>
+  <button id="login">Sign in with Google</button>
+  <button id="logout">Sign out</button>
+  <pre id="status">Not signed in</pre>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const supabase = createClient('${SUPABASE_URL}', '${SUPABASE_ANON_KEY}');
+    const statusEl = document.getElementById('status');
+
+    document.getElementById('login').onclick = () => {
+      supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.href },
+      });
+    };
+
+    document.getElementById('logout').onclick = async () => {
+      await supabase.auth.signOut();
+      statusEl.textContent = 'Signed out';
+    };
+
+    async function checkSession() {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        statusEl.textContent = 'Not signed in';
+        return;
+      }
+
+      statusEl.textContent = 'Signed in as ' + session.user.email + '\\nVerifying with backend...';
+
+      const res = await fetch('/auth/callback', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + session.access_token },
+      });
+      const body = await res.json();
+
+      if (res.status === 401) {
+        // Stale/invalid session cached locally - clear it so the next login starts fresh
+        await supabase.auth.signOut();
+        statusEl.textContent = 'Cached session was invalid, signed out. Click "Sign in with Google" again.\\n' + JSON.stringify(body, null, 2);
+        return;
+      }
+
+      statusEl.textContent = 'Backend response:\\n' + JSON.stringify(body, null, 2);
+    }
+
+    checkSession();
+  </script>
+</body>
+</html>`);
 });
 
-const gracefulShutdown = () => {
-  console.log("Starting graceful shutdown...");
-  server.close(() => {
-    console.log("HTTP server closed");
-    process.exit(0);
-  });
-};
-
-process.on("SIGTERM", gracefulShutdown);
-process.on("SIGINT", gracefulShutdown);
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
