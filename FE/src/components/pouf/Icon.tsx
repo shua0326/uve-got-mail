@@ -1,7 +1,29 @@
+/* ── LOCAL EDIT — do not lose this on a re-install ────────────────────────
+ * Two roles added to the ICONS map: `fullscreen` and `fullscreen-exit`, from
+ * @tabler's IconArrowsMaximize / IconArrowsMinimize. Everything else in this
+ * file is the registry's own.
+ *
+ * Why here rather than in the call site: this file's own rule is that
+ * components name a ROLE and never an icon import, and the replay player needs
+ * one for "give the letter the whole frame" and its inverse. `renderIcon` does
+ * accept a bare ReactNode, so the alternative was importing @tabler directly
+ * into LetterPlayer.tsx — which works, and quietly starts a second icon
+ * vocabulary in app-land. Sanctioned by the pouf conventions: "When you
+ * genuinely need an escape hatch that no variant covers, you own the file —
+ * edit it."
+ *
+ * The map is documented as injective — one glyph, one role — and these two are:
+ * nothing else in it means enter/leave a maximised view. If a future
+ * `shadcn add` overwrites Icon.tsx this comment disappears with it; that is the
+ * tell, and the fix is to re-apply the two imports and the two map entries.
+ * ─────────────────────────────────────────────────────────────────────── */
+
 import {
   IconAlertTriangle,
   IconAntennaBars5,
   IconArrowDown,
+  IconArrowsMaximize,
+  IconArrowsMinimize,
   IconArrowUp,
   IconBell,
   IconBolt,
@@ -126,6 +148,9 @@ const ICONS = {
   prev: IconChevronLeft,
   next: IconChevronRight,
   photo: IconPhoto,
+  /* LOCAL EDIT (see banner): enter / leave a maximised view. */
+  fullscreen: IconArrowsMaximize,
+  'fullscreen-exit': IconArrowsMinimize,
   // general vocabulary — a broader set so app screens never reach for emoji.
   heart: IconHeart,
   'heart-filled': IconHeartFilled,

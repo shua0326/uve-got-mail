@@ -119,8 +119,16 @@
   --wax-deep: #8e3630;
   /* Ruled-line blue, the feint printed on writing paper. Weak on purpose: at
      full strength the letter card reads as a school exercise book. A feint is
-     meant to be findable, not followed. */
-  --rule: rgba(150, 170, 190, 0.34);
+     meant to be findable, not followed.
+
+     0.12, down from 0.34. At the old value the 28px pitch put a visible line
+     directly under "FROM" and through the descenders of "Letter 1 of 3" on the
+     inbox card, and at that weight they read as a border and a strike-through
+     rather than as paper — the one place in the app that looked unfinished.
+     The pitch is not the problem and cannot be fixed anyway (the card sets
+     four different sizes, so no single pitch sits under all of them); a feint
+     that is genuinely feint is legible under any of them. */
+  --rule: rgba(150, 170, 190, 0.12);
 
   /* pouf reads these aliases, not the @theme names. Re-pointed so the values
      above actually reach the components. */
@@ -275,7 +283,7 @@ body {
 .pouf-popover,
 .pouf-menu,
 .pouf-toast,
-#whiteboard-container {
+.stage__frame {
   background-image: var(--grain-paper);
 }
 

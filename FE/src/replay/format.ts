@@ -2,6 +2,21 @@ import type { RecordsDiff, UnknownRecord } from '@tldraw/store'
 
 export const RECORDING_FORMAT_VERSION = 1
 
+/**
+ * The page a letter is written on, in tldraw page coordinates.
+ *
+ * The composer's camera is constrained to it, the player's camera is
+ * constrained to it, and the player frames exactly this on load — so what the
+ * recipient sees is the sheet the author was looking at, not a crop of it and
+ * not a zoom onto whatever they happened to draw. It lives here, beside the
+ * recording format, because it is part of the contract between the two ends:
+ * change it and every existing recording is reframed.
+ *
+ * 16:9 is not arbitrary either — `.desk` in index.css sizes the frame from it,
+ * so the sheet on screen is the same shape as the page inside it.
+ */
+export const LETTER_PAGE = { x: 0, y: 0, w: 1600, h: 900 } as const
+
 /** A RecordsDiff stripped for forward-only application (see IMPLEMENTATION_PLAN.md §1.3). */
 export interface ForwardDiff {
   a?: Record<string, unknown> // added:   id -> full record

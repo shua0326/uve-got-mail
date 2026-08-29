@@ -1,11 +1,13 @@
 /**
  * Loaded last — after `tldraw/tldraw.css`, `pouf.css` and `index.css` (see
- * main.tsx). Two jobs, in order:
+ * main.tsx). Three jobs, in order:
  *
  *   1. Undo the handful of preflight rules tldraw doesn't defend itself
  *      against.
  *   2. Repoint tldraw's `--tl-color-*` tokens so the canvas chrome belongs to
  *      the 1st-Pouf design system.
+ *   3. One layout correction inside the composer's toolbar, which is the only
+ *      place this file touches tldraw's own geometry rather than its colours.
  */
 
 /* --- 1. Preflight guards -------------------------------------------------
@@ -107,6 +109,7 @@
 .tl-container .tlui-layout__top__left > *,
 .tl-container .tlui-layout__top__right > *,
 .tl-container .tlui-toolbar__tools,
+.tl-container .tlui-main-toolbar__extras > *,
 .tl-container .tlui-menu,
 .tl-container .tlui-popover__content {
   border-radius: var(--r-card);
@@ -150,4 +153,26 @@
  * dropped for the canvas element alone. */
 .tl-container .tl-canvas:focus-visible {
   outline: none;
+}
+
+/* --- 3. The composer's toolbar, in `forceMobile` layout -------------------
+ *
+ * LetterCanvas asks tldraw for its mobile UI at every width, so the style
+ * panel is a button on the toolbar instead of a 150x290 panel parked open in
+ * the corner of somebody's letter (the reasoning is on the prop).
+ *
+ * That layout stacks the quick-action row — undo, redo, delete, duplicate —
+ * ABOVE the toolbar and left-aligns it inside a block that is as wide as the
+ * toolbar. On a phone the toolbar is nearly the full width and the two read as
+ * one stack. On a 970px sheet the toolbar is 393px wide and the quick actions
+ * are a 190px pill stranded over its left half, which reads as something that
+ * failed to lay out rather than as a decision.
+ *
+ * One line, and it only touches the axis tldraw left `normal`: centre the
+ * extras on the toolbar they belong to. The toolbar itself is deliberately
+ * left where it is — it sits half the style button's width left of the frame's
+ * centre because the GROUP is what tldraw centres, which is correct. */
+.tl-container .tlui-main-toolbar__extras {
+  display: flex;
+  justify-content: center;
 }

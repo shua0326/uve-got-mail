@@ -9,10 +9,10 @@
  * What is left here is the handful of things pouf has no primitive for,
  * every one of them a *placement* problem:
  *
- *   - the tldraw stage, which must fill a fixed box the canvas can size to;
- *   - HUDs and the GIF panel, which float ABOVE that canvas in its own
- *     stacking context (a pouf `Card` renders the panel; this file only says
- *     where the wrapper sits);
+ *   - the desk column: a letter-shaped sheet with a strip of page chrome
+ *     above and/or below it (components/Stage.tsx renders the markup);
+ *   - the one overlay that genuinely belongs over the canvas — the player's
+ *     transport in immersive mode;
  *   - the full-viewport centring the signed-out screens use.
  *
  * Values come from pouf's own custom properties (`--s*`, `--surface`,
@@ -27,12 +27,39 @@
   min-height: 100svh;
 }
 
+/* The shell is measured FROM the sheet, not the other way round.
+ *
+ * The desk below is width-capped by the letter's own 16:9 aspect ratio (see
+ * THE DESK), so a shell with an independent max-width put a wider navbar over
+ * a visibly narrower sheet — two edges 130px apart down both sides of the
+ * page, which is the kind of near-miss that reads as a mistake rather than as
+ * a margin. Deriving the cap from `--desk-w` makes the navbar and the sheet
+ * exactly the same width at every viewport size. 1200 is still the ceiling for
+ * the case where the height budget would otherwise make the sheet enormous.
+ *
+ * The four custom properties live here rather than on `.desk` because this
+ * rule needs them too; `.desk` inherits them. */
+/* On `:root` and not on `.app-shell`, because `.pouf-toasts` needs `--bar-h`
+   too and pouf portals that stack to <body>, outside the shell. */
+:root {
+  --bar-h: 56px;
+  --bar-slot: calc(var(--bar-h) + var(--s3));
+  /* Capped at 720 so the sheet doesn't become a wall on a tall monitor, and
+     held under 78svh so the navbar, the shell padding and the column together
+     never exceed the viewport — which is what keeps the page from scrolling. */
+  --frame-h: min(calc(78svh - var(--bar-slot)), 720px);
+  --desk-w: calc(var(--frame-h) * 16 / 9);
+  /* The sheet's own colour, a half-step darker than the paper. Named because
+     two rules need it: the sheet, and the cover that replaces its contents. */
+  --blotter: #f8f1e2;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
   gap: var(--s4);
   width: 100%;
-  max-width: 1440px;
+  max-width: min(1200px, calc(var(--desk-w) + 2 * var(--s5)));
   margin: 0 auto;
   padding: var(--s5);
   box-sizing: border-box;
@@ -42,6 +69,28 @@
   .app-shell {
     padding: var(--s3);
     gap: var(--s3);
+    max-width: min(1200px, calc(var(--desk-w) + 2 * var(--s3)));
+  }
+}
+
+/* Portrait. A 16:9 sheet inside a phone's width is 197px tall on a 375 screen
+   — too short to draw on, and it would leave the rest of the column empty. So
+   below this breakpoint the sheet is given a floor and the letter letterboxes
+   inside it instead. `fit-min` is what makes that safe: the whole page is
+   still visible, just smaller. */
+@media (max-width: 760px) {
+  :root {
+    /* A 16:9 sheet inside a 390px phone is 206px tall. That is not a drawing
+       surface — tldraw's own toolbar sits INSIDE the frame and would cover
+       half of it — so portrait gives up on matching the ratio and gives the
+       sheet real height instead, letting `fit-min` letterbox the letter inside
+       it. Floor 360 so a short phone still has somewhere to draw, ceiling 460
+       so a tall one doesn't hand over the whole screen to empty margin. */
+    --frame-h: clamp(360px, 58svh, 460px);
+  }
+
+  .app-shell {
+    max-width: none;
   }
 }
 
@@ -58,62 +107,144 @@
   box-sizing: border-box;
 }
 
-/* Caps the cards on those screens so a 32px-radius cushion doesn't stretch
+/* Caps the cards on those screens so a 24px-radius cushion doesn't stretch
    the full width of a desktop monitor. */
 .page-center > * {
   width: min(420px, 100%);
 }
 
-/* --- The tldraw stage ---------------------------------------------------- */
+/* ============================================================================
+ * THE DESK
+ *
+ * One fixed-size column, centred, holding whichever screen is showing. Three
+ * numbers define it and everything else falls out of them:
+ *
+ *   --bar-h     the height of a strip of page chrome (Stage's toolbar /
+ *               transport). Fixed, not min-height: the column's height is
+ *               computed from it, so a bar that grew would silently change
+ *               the sheet's aspect ratio.
+ *   --bar-slot  that plus the gap under it.
+ *   --frame-h   the height of the sheet on a screen that has ONE bar.
+ *
+ * The column is `--frame-h + --bar-slot` tall and `--frame-h * 16/9` wide. So
+ * on the composer (one bar above) and the player (one bar below) the sheet
+ * comes out at exactly 16:9 — the aspect ratio of the 1600x900 page the
+ * recorder and player are pinned to.
+ *
+ * WHY THAT MATTERS, and it is a correctness fix rather than a cosmetic one:
+ * the camera is set to `fit-min`, which fits the whole page inside the
+ * viewport. Before this the box was `min(78svh, 900px)` tall at full shell
+ * width — a 2.3:1 frame around a 1.78:1 page — and the camera was `fit-max`,
+ * which fills the LARGER axis and crops the rest. Measured on a 1512x950
+ * window: 204px of the letter's 900, 23% of it, was off-screen top and bottom.
+ * Anything drawn up there was recorded and then invisible to the recipient.
+ * Squaring the frame to the page removes the letterbox; `fit-min` removes the
+ * crop at every other size (a phone, a short window, immersive mode).
+ * ========================================================================= */
 
-/* A pouf card by construction — same surface, radius and cushion as `Card` —
-   but written out here because it also has to be a sized, clipping,
-   positioned container, and `Card` accepts no layout props. `overflow:
-   hidden` is what makes the canvas respect the 32px corners. */
-#whiteboard-container {
+.desk {
   position: relative;
   width: 100%;
-  height: min(78svh, 900px);
-  min-height: 420px;
-  background: var(--surface);
-  border-radius: var(--r-card);
-  box-shadow: var(--pouf-card);
-  overflow: hidden;
+  height: calc(var(--frame-h) + var(--bar-slot));
 }
 
 /* The animated wrapper App.tsx puts around whichever screen is showing.
    `absolute; inset: 0` rather than `height: 100%`, and that is load-bearing:
    framer applies a `transform` for the duration of the transition, and a
    transformed element becomes the containing block for its absolutely
-   positioned descendants — which is every canvas HUD. Sized to exactly the
-   container box, the HUDs land in the same place whether the transform is
-   present or not. */
+   positioned descendants — which is the immersive transport. Sized to exactly
+   the column, it lands in the same place whether the transform is present or
+   not. */
 .stage-anim {
   position: absolute;
   inset: 0;
 }
 
-/* Fills #whiteboard-container and establishes the stacking context the HUDs
-   position against. Used by LetterCanvas and LetterPlayer. */
+/* Bar / sheet / bar. The sheet takes whatever the bars leave. */
 .stage {
-  position: relative;
-  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
   height: 100%;
 }
 
-/* Centres a pouf `Empty` / `Skeleton` / `ErrorNote` inside the stage box. */
+/* Page chrome, sitting straight on the page rather than on a cushion of its
+   own — see the note at the top of Stage.tsx. `overflow: visible` because the
+   controls inside carry pouf's drop shadows past their own boxes. */
+.stage__bar {
+  flex: none;
+  height: var(--bar-h);
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+
+/* The bar's single child is a pouf `Row`, which is shrink-to-fit by default —
+   so `.bar-spacer` inside it had nothing to expand into and the actions never
+   reached the right-hand edge. Stretching the Row to the bar is what makes
+   `justify` and the spacer mean anything. `min-width: 0` so a long dateline
+   shrinks the row rather than overflowing the sheet's width. */
+.stage__bar > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The sheet. A pouf card by construction — same surface, radius and cushion as
+   `Card` — but written out here because it also has to be a sized, clipping,
+   positioned container, and `Card` accepts no layout props. `overflow: hidden`
+   is what makes the canvas respect the corners. */
+.stage__frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  box-shadow: var(--pouf-card);
+  overflow: hidden;
+}
+
+/* Replaces the sheet's contents rather than floating over them — used for the
+   one state where the canvas underneath is not worth looking at, a letter this
+   version of the app cannot replay. Opaque and absolutely positioned, because
+   the tldraw container it covers is a sibling in normal flow and would
+   otherwise push it out of the sheet entirely. */
+.stage-cover {
+  position: absolute;
+  inset: 0;
+  background: var(--blotter);
+}
+
+/* Centres a pouf `Empty` / `Skeleton` / `ErrorNote` / card inside the sheet. */
 .stage-center {
   height: 100%;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: var(--s4);
   padding: var(--s5);
   box-sizing: border-box;
 }
 
-/* On a phone the 20px inset is 40px of the ~380px the gallery row has to work
+/* Centred by AUTO MARGINS, not by `justify-content: center`, and the
+   difference only shows when it matters: a flex column that centres its
+   content and then overflows pushes the first item's top out past the
+   scroll container's start, where it cannot be scrolled back to. On a
+   phone the sheet is 360px and the profile card is taller than that, so
+   the avatar and the username would have been unreachable. Auto margins
+   collapse to zero once there is no free space, which turns the same box
+   into an ordinary top-aligned scroller at exactly the right moment.
+   (`justify-content: safe center` says the same thing in one line, and is
+   still new enough that this is the version that runs everywhere.) */
+.stage-center > :first-child {
+  margin-top: auto;
+}
+
+.stage-center > :last-child {
+  margin-bottom: auto;
+}
+
+/* On a phone the 20px inset is 40px of the ~350px the gallery row has to work
    with — more than one of its two buttons. */
 @media (max-width: 640px) {
   .stage-center {
@@ -121,137 +252,7 @@
   }
 }
 
-/* --- Floating canvas overlays -------------------------------------------- */
-
-/* Wrappers only: each one holds a pouf `Card variant="tight"` that supplies
-   the surface, radius and cushion. Kept clear of tldraw's own top-left page
-   menu, top-right style panel and bottom-centre toolbar so the two UIs never
-   fight for a corner. */
-.hud {
-  position: absolute;
-  z-index: 99999;
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: min(760px, calc(100% - var(--s8)));
-}
-
-.hud--top {
-  top: var(--s3);
-}
-
-/* Above tldraw's toolbar. Safe at this offset in readonly playback, where the
-   style panel and page menu don't render. */
-.hud--bottom {
-  bottom: 72px;
-  width: min(780px, calc(100% - var(--s8)));
-}
-
-/* Everything in a HUD sits on one line. These are compact transport controls
-   over a canvas, and a wrapped "Back to compose" or a "0:00 /\A 0:00" timecode
-   makes the bar grow taller and cover more of the drawing. The slider is the
-   only element allowed to absorb slack (.hud-grow, below). */
-.hud .pouf-btn,
-.hud-time {
-  white-space: nowrap;
-}
-
-.hud-time {
-  flex: none;
-}
-
-/* The speed picker fills its container by default, which let it eat the width
-   the slider needs. Four options, none longer than "0.5×". */
-.hud-speed {
-  flex: none;
-  width: 96px;
-}
-
-/* The player's seek slider is the only element in its HUD that should absorb
-   leftover width. */
-.hud-grow {
-  flex: 1;
-  min-width: 120px;
-}
-
-/* Left-edge GIF panel. Sized and placed here; `Card variant="flush"` inside
-   supplies the cushion, and `overflow: hidden` clips the scroll region to the
-   card's corners. */
-.gif-panel {
-  position: absolute;
-  z-index: 99998;
-  /* Clears tldraw's own top-left main-menu button rather than covering it —
-     the two UIs must not fight for the same corner. */
-  top: 60px;
-  bottom: 72px;
-  left: var(--s3);
-  width: 300px;
-  max-width: calc(100% - var(--s6));
-  display: flex;
-  overflow: hidden;
-  border-radius: var(--r-card);
-}
-
-.gif-panel-inner {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-  width: 100%;
-  padding: var(--s4);
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-/* A fluid image tile. Pouf has no component for one — `Figure` takes fixed
-   width/height, which a responsive grid cell can't supply — so this stays a
-   raw button, reset off pouf's `appearance: auto` base rule and given the
-   system's own control radius so it still reads as part of the set. */
-.gif-tile {
-  appearance: none;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  aspect-ratio: 1;
-  border-radius: var(--r-control);
-  overflow: hidden;
-  display: block;
-}
-
-.gif-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* --- Screens inside the stage -------------------------------------------- */
-
-/* The inbox gallery card. A pouf `Card` hugs its content, and a letter from
-   someone with a short username would otherwise render a card narrower than
-   its own "Letter 1 of 3" footer — so the width is set on the wrapper.
-
-   `width: 100%` + `max-width`, NOT a fixed `min(380px, 70vw)`. The fixed
-   version could not shrink, so on a phone the card kept its full width and
-   pushed the prev/next buttons out past `#whiteboard-container`'s
-   `overflow: hidden` — at 430px both arrows were sliced in half by the
-   container's edge. Given a percentage width and `min-width: 0`, the card
-   absorbs whatever the flex row has left after the two buttons, and caps
-   itself at 380px on a desktop where there is plenty. */
-.letter-card {
-  width: 100%;
-  max-width: 380px;
-  min-width: 0;
-}
-
-/* ...and the buttons it is now sharing that row with must not be the things
-   that give way. Without this they are equally shrinkable and a very narrow
-   viewport squashes the arrows into slivers instead of the card. */
-.stage-center .pouf-row > .pouf-btn {
-  flex: none;
-}
-
-/* A scrolling list inside the fixed stage box (Requests). `ScrollArea` is the
+/* A scrolling list inside the fixed sheet (Requests). `ScrollArea` is the
    pouf primitive for this, but it takes a fixed `maxHeight` string and this
    region is sized by its parent, so the scroll lives on the wrapper. */
 .stage-scroll {
@@ -267,88 +268,285 @@
   margin: 0 auto;
 }
 
-/* The GIF results region. `ScrollArea` is the pouf primitive, but it takes a
-   fixed `maxHeight` string and this region's height is whatever the panel has
-   left over — so the scroll lives here. `min-height: 0` is what lets a flex
-   child actually shrink enough to scroll. */
-.gif-scroll {
+/* --- Bar contents -------------------------------------------------------- */
+
+/* Everything in a bar sits on one line. A wrapped "Back to inbox" or a
+   "0:04 /\A 0:11" timecode would make the bar taller than `--bar-h`, and the
+   column's height is computed from that — a bar that grew would silently
+   change the sheet's aspect ratio. Measured at 500px before this rule: the
+   composer's "Draw to start recording" broke into a five-line column that
+   spilled out over the top of the sheet. The scrubber is the only element
+   allowed to absorb slack. */
+.stage__bar .pouf-btn,
+.stage__bar .dateline,
+.bar-status,
+.bar-time {
+  white-space: nowrap;
+}
+
+.bar-status {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ...and where one line is not enough room, things leave in order of how
+   little they are carrying.
+ *
+ * The dateline goes first: it is atmosphere, and a letter's date is on the
+ * letter. The recording indicator and the timecode go next, at the width where
+ * the two ACTIONS would otherwise start to shrink — a "Finish & preview" that
+ * cannot be read is a worse phone than one without a frame counter, and both
+ * of them are saying something the screen says anyway (strokes appear as you
+ * draw; the scrubber shows where you are). What survives at every width is the
+ * controls. */
+@media (max-width: 700px) {
+  .stage__bar .dateline {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .bar-status,
+  .bar-time {
+    display: none;
+  }
+}
+
+.bar-time {
+  flex: none;
+  /* Tabular figures are on (`Text num`), so this only has to be wide enough
+     for the longest timecode — reserving it stops the whole row shuffling
+     sideways once a second while the letter plays. */
+  min-width: 92px;
+  text-align: right;
+}
+
+/* The speed picker fills its container by default, which let it eat the width
+   the scrubber needs. Four options, none longer than "0.5x". */
+.bar-speed {
+  flex: none;
+  width: 92px;
+}
+
+/* The scrubber is the only element in the transport that should absorb
+   leftover width. */
+.bar-grow {
   flex: 1;
-  min-height: 0;
+  min-width: 120px;
+}
+
+/* Pushes what follows to the far end of a bar. */
+.bar-spacer {
+  flex: 1;
+  min-width: var(--s3);
+}
+
+/* --- Immersive playback --------------------------------------------------
+ *
+ * The docked transport never covers the letter, which is the whole point of
+ * it, and it costs `--bar-slot` of height. Immersive mode buys that back: the
+ * bar leaves the flow, the sheet grows into the space (so the letter is drawn
+ * LARGER, letterboxed a little at the sides by `fit-min`), and the transport
+ * becomes an overlay that takes itself away.
+ *
+ * Auto-hide is driven from LetterPlayer — it owns the idle timer, because
+ * "idle" means idle *while playing* and CSS can't know that. This is only the
+ * rendering of the two states, plus the two ways a hidden bar must come back
+ * that JS should not be involved in: hovering it, and tabbing into it.
+ */
+.stage-hud {
+  position: absolute;
+  left: 50%;
+  bottom: var(--s4);
+  width: min(720px, calc(100% - var(--s7)));
+  transform: translateX(-50%);
+  transition:
+    opacity 220ms var(--ease-settle),
+    transform 220ms var(--ease-settle);
+}
+
+.stage-hud[data-hidden='true'] {
+  opacity: 0;
+  /* Not `visibility: hidden`: the transport must stay in the tab order, so a
+     keyboard user can bring it back with focus (the :focus-within rule below)
+     rather than having to move a pointer. `pointer-events: none` is what stops
+     an invisible bar from swallowing clicks meant for the letter. */
+  pointer-events: none;
+  transform: translateX(-50%) translateY(10px);
+}
+
+/* Two ways a hidden bar comes back that JS should not be involved in.
+ *
+ * `:has(:focus-visible)` and NOT `:focus-within`, which was the first attempt
+ * and pinned the bar open permanently: clicking Play leaves focus ON the play
+ * button, so `:focus-within` matched for the rest of the letter and the bar
+ * never faded once. `:focus-visible` is the browser's own answer to "is this
+ * focus one the user needs to see?" — true when they tabbed here, false when
+ * they clicked — which is exactly the distinction wanted. */
+.stage-hud:hover,
+.stage-hud:has(:focus-visible) {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%);
+}
+
+/* --- Screens inside the sheet -------------------------------------------- */
+
+/* The inbox gallery card. A pouf `Card` hugs its content, and a letter from
+   someone with a short username would otherwise render a card narrower than
+   its own "Letter 1 of 3" footer — so the width is set on the wrapper.
+
+   `width: 100%` + `max-width`, NOT a fixed `min(380px, 70vw)`. The fixed
+   version could not shrink, so on a phone the card kept its full width and
+   pushed the prev/next buttons out past the sheet's `overflow: hidden` — at
+   430px both arrows were sliced in half by the frame's edge. Given a
+   percentage width and `min-width: 0`, the card absorbs whatever the flex row
+   has left after the two buttons, and caps itself at 380px on a desktop where
+   there is plenty. */
+.letter-card {
+  width: 100%;
+  max-width: 380px;
+  min-width: 0;
+}
+
+/* ...and the buttons it is now sharing that row with must not be the things
+   that give way. Without this they are equally shrinkable and a very narrow
+   viewport squashes the arrows into slivers instead of the card. */
+.stage-center .pouf-row > .pouf-btn {
+  flex: none;
+}
+
+/* A fluid image tile, used by the GIF picker's grid. Pouf has no component for
+   one — `Figure` takes fixed width/height, which a responsive grid cell can't
+   supply — so this stays a raw button, reset off pouf's `appearance: auto`
+   base rule and given the system's own control radius so it still reads as
+   part of the set. */
+.gif-tile {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: var(--bg);
+  cursor: pointer;
+  aspect-ratio: 1;
+  border-radius: var(--r-control);
+  overflow: hidden;
+  display: block;
+  transition: box-shadow 160ms var(--ease-settle);
+}
+
+.gif-tile:hover {
+  box-shadow: 0 0 0 3px var(--purple);
+}
+
+.gif-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* The GIF results region. `ScrollArea` is the pouf primitive, but it takes a
+   fixed `maxHeight` string and this region's height is whatever the dialog has
+   left over — so the scroll lives here. */
+.gif-scroll {
+  min-height: 220px;
+  max-height: min(52svh, 420px);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* --- Toast stack --------------------------------------------------------- */
 
 /* pouf's `.pouf-toasts` pins the stack to the top-right of the viewport, which
-   assumes nothing else lives there. This app's Navbar puts "Add friend" and
-   "Sign out" in exactly that corner, so an arriving toast landed on top of
-   them — covering two controls at the moment it was telling you something went
-   wrong. Pushed below the navbar: shell padding + the 64px navbar + a gap.
-   Only the offset is overridden; width, stacking and pointer-events stay
-   pouf's. */
+   assumes nothing else lives there. Twice over, here it does. The Navbar puts
+   "Add friend" and "Sign out" in exactly that corner, and below THAT the
+   composer's page bar ends in "Add GIF" and "Finish & preview" — so a toast
+   covered two controls at the moment it was telling you something, and the
+   "Added to your letter" toast landed squarely on the button you press next.
+   Pushed below both: shell padding + the 64px navbar + a gap + a bar. Only the
+   offset is overridden; width, stacking and pointer-events stay pouf's. */
 .pouf-toasts {
-  top: calc(var(--s5) + 64px + var(--s3) + env(safe-area-inset-top, 0px));
+  top: calc(var(--s5) + 64px + var(--s4) + var(--bar-h) + env(safe-area-inset-top, 0px));
 }
 
 @media (max-width: 900px) {
   .pouf-toasts {
-    top: calc(var(--s3) + 64px + var(--s3) + env(safe-area-inset-top, 0px));
+    top: calc(var(--s3) + 64px + var(--s3) + var(--bar-h) + env(safe-area-inset-top, 0px));
   }
 }
 
-/* --- Stacking ------------------------------------------------------------ */
+/* --- Stacking ------------------------------------------------------------
+ *
+ * tldraw's UI is NOT self-contained, and that is the whole reason this block
+ * exists. `.tl-container` is `position: relative; z-index: auto` with no
+ * `isolation`, so it creates no stacking context — and `.tlui-layout` inside
+ * it is `z-index: 300`, competing directly with everything else in the root
+ * context. tldraw's own stylesheet also uses 999, 2000 and 2001 for its
+ * resize handles and overlays.
+ *
+ * pouf's scale tops out at 80 (overlay 50, dialog 60, popover 70, toasts 80),
+ * which is correct for a page and 220 short of a canvas. Left alone, opening
+ * the GIF picker drew the composer's toolbar straight over the middle of the
+ * modal — verified in the browser, which is how it was found.
+ *
+ * So the whole portalled band is lifted over tldraw's ceiling in one step,
+ * keeping pouf's relative order exactly as shipped. It is a much shorter jump
+ * than the 99999/100000+ this file used to carry: THAT band existed because
+ * the app's own HUDs lived inside `.tl-container` and had to out-rank
+ * tldraw's UI, which in turn forced every portalled surface above them (a
+ * dialog opened from a HUD rendered underneath the HUD that opened it until
+ * it was). No app control is inside the canvas any more, so only tldraw's own
+ * ceiling has to be cleared.
+ */
+.stage-hud {
+  /* The one thing still drawn over a canvas. Above tldraw's ceiling — the
+     player runs `hideUi` so there is nothing of tldraw's to fight, but a
+     number that depends on that would be a trap for whoever turns it back on
+     — and below the scrim, so a dialog opened from the bar above still covers
+     it. */
+  z-index: 2500;
+}
 
-/* The canvas HUDs have to out-rank tldraw's own UI, which sits in the high
-   hundreds inside .tl-container — hence the 99998/99999 above, carried over
-   from the pre-migration stylesheet. That puts them above pouf's entire
-   layer scale (overlays 50-70, toasts 80), so a dialog opened FROM a HUD
-   rendered underneath the HUD that opened it: the send dialog's submit button
-   was covered by the player transport bar.
-
-   Everything below is portalled to <body>, outside #whiteboard-container, so
-   raising it cannot affect tldraw. pouf's own relative order is preserved —
-   overlays under dialogs, toasts over both — just shifted above the HUD band.
-
-   .pouf-popover matters as much as the dialog here: the player's speed Select
-   drops its list through a popover, and that list opens from inside the HUD. */
 .pouf-overlay {
-  z-index: 100000;
+  z-index: 3000;
 }
 
 .pouf-dialog,
 .pouf-sheet-dialog,
 .pouf-sheet {
-  z-index: 100001;
+  z-index: 3001;
 }
 
+/* Popovers matter as much as dialogs here: the player's speed Select drops
+   its list through one, and that list opens from a bar sitting right beside
+   the canvas. */
 .pouf-popover,
 .pouf-menu,
 .pouf-hover,
 .pouf-tooltip {
-  z-index: 100002;
+  z-index: 3002;
 }
 
 .pouf-toasts {
-  z-index: 100003;
+  z-index: 3003;
 }
 
 /* The navbar's mobile dropdown, and it is the exception the block above
    predicts. Below 760px of navbar width the links collapse into a `<details>`
    menu (pouf/navbar.tsx), and that menu is NOT portalled — it is an
-   absolutely positioned child of the navbar at pouf's `z-20`, sitting in the
-   same root stacking context as the HUDs. So on a phone, opening the menu
-   over the composer drew the nav links UNDERNEATH the recording HUD: the only
-   route to the other three screens, half-covered by a toolbar.
-   (design_handoff.txt §5 lists this menu as opened-but-never-clicked; this is
-   what was waiting there.)
-
-   `100000` rather than a number above the toast band on purpose. It clears
-   the HUDs, and it deliberately TIES with `.pouf-overlay` — which is
-   portalled to <body> and therefore later in document order, so a modal scrim
-   still covers an open nav menu rather than the other way round. A menu that
-   could out-rank a dialog would be the same bug facing the other way. */
+   absolutely positioned child of the navbar at pouf's `z-20`, in the same root
+   stacking context as everything here. At 20 it opened UNDERNEATH the canvas
+   and the immersive transport: on a phone, the only route to the other three
+   screens, covered.
+ *
+ * 3000 rather than something above the toast band, deliberately: it clears
+ * them, and it TIES with `.pouf-overlay` — which is portalled to <body> and
+ * therefore later in document order, so a modal scrim still covers an open nav
+ * menu rather than the other way round. A menu that could out-rank a dialog
+ * would be the same bug facing the other way. */
 .pouf-navbar__mobile {
-  z-index: 100000;
+  z-index: 3000;
 }
 
 /* ============================================================================
@@ -364,18 +562,18 @@
 
 /* --- The blotter ---------------------------------------------------------
  *
- * `#whiteboard-container` is not only the canvas — every screen renders
- * inside it (App.tsx). For the composer and the player tldraw paints the box
- * edge to edge and this colour is never seen. For the Inbox, Requests and
- * Profile it IS the visible field the cards sit on, and while it was the same
- * ivory as the cards those cards had nothing to sit *on*: an ivory card on an
- * ivory panel is a shadow, not an object.
+ * The sheet is not only the canvas — every screen renders inside it (App.tsx).
+ * For the composer and the player tldraw paints the box edge to edge and this
+ * colour is never seen. For the Inbox, Requests and Profile it IS the visible
+ * field the cards sit on, and while it was the same ivory as the cards those
+ * cards had nothing to sit *on*: an ivory card on an ivory panel is a shadow,
+ * not an object.
  *
  * So the panel becomes a desk blotter — a half-step darker than the paper,
  * with the light falling off toward its edges. The letter card reads as
  * something laid down on it. */
-#whiteboard-container {
-  background-color: #f8f1e2;
+.stage__frame {
+  background-color: var(--blotter);
   background-image:
     radial-gradient(120% 80% at 50% 0%, rgba(255, 253, 246, 0.75), rgba(255, 253, 246, 0) 65%),
     var(--grain-paper);
@@ -403,10 +601,10 @@
 
 /* --- Datelines -----------------------------------------------------------
  *
- * "Melbourne, Saturday 30 August" — the line a letter opens with, before
- * anything is said. It appears over the composer (what you are writing now)
- * and on an inbox letter (when it was written). Small caps rather than a
- * hand, because it is a fact about the letter rather than part of it. */
+ * "Saturday 30 August" — the line a letter opens with, before anything is
+ * said. It appears over the composer (what you are writing now) and on an
+ * inbox letter (when it was written). Small caps rather than a hand, because
+ * it is a fact about the letter rather than part of it. */
 .dateline {
   font-family: var(--font-ui);
   font-size: 11px;
@@ -416,16 +614,16 @@
   color: var(--muted);
 }
 
-/* Only the composer's dateline refuses to wrap. It sits in a single-line HUD
-   where a second line makes the bar taller and covers more of the drawing.
+/* Only the composer's dateline refuses to wrap — it sits in a fixed-height
+   page bar, and the column's geometry is computed from that height.
 
    On the inbox card it must be ALLOWED to wrap, and that is load-bearing:
    "FRIDAY 28 AUGUST · 19:21" set unbreakable was the widest unbreakable thing
    in the card, so it — not the card's own max-width — was setting the card's
    minimum width. At 430px that held the card 25px wider than the row had room
-   for, and the prev/next buttons were pushed past `#whiteboard-container`'s
-   `overflow: hidden` and sliced off at both edges. */
-.hud .dateline {
+   for, and the prev/next buttons were pushed past the sheet's `overflow:
+   hidden` and sliced off at both edges. */
+.stage__bar .dateline {
   white-space: nowrap;
 }
 
@@ -447,6 +645,12 @@
   justify-content: center;
   color: var(--on-accent);
   background-color: var(--purple);
+  /* The frank is drawn as a rotated ring, and a rotated box is wider than the
+     box it started as. Without this its left arc crossed the perforations and
+     printed on the card behind the stamp, which read as a smudge rather than a
+     cancellation. Costs nothing else: the perforations below are background
+     layers, already inside the box. */
+  overflow: hidden;
 
   /* Perforations.
    *
@@ -485,15 +689,21 @@
 }
 
 /* The frank. A ring with three short bars struck through it, rotated off
-   square the way a hand-cancel always is — it is stamped by a person who is
-   not lining it up. The bars are 62% wide and centred rather than edge to
-   edge: full-width ones read as a "no entry" slash across the stamp, which is
-   the opposite of what a cancellation means. Kept faint, because a postmark
-   is ink that has partly taken. */
+ * square the way a hand-cancel always is — it is stamped by a person who is
+ * not lining it up. The bars are 58% wide and centred rather than edge to
+ * edge: full-width ones read as a "no entry" slash across the stamp, which is
+ * the opposite of what a cancellation means. Kept faint, because a postmark
+ * is ink that has partly taken.
+ *
+ * 44px inside a 62px stamp, not 54px. At 54 the ring was 4px from the
+ * perforations before the strike offset moved it, and the rotation then put
+ * its arc over them; the whole mark ran into the mail icon underneath it and
+ * read as a scribble. At 44 there is a rim of stamp visible all the way round
+ * and the icon still shows through the middle. */
 .stamp--franked::after {
   content: '';
   position: absolute;
-  /* CENTRED EXPLICITLY, and this is the bug that was here: with `position:
+  /* CENTRED EXPLICITLY, and this is a bug that was here once: with `position:
      absolute` but no `top`/`left`, the postmark fell back to its STATIC
      position — which inside a centring flex row is the end of the line, after
      the icon. It rendered visibly down and to the right of the stamp it is
@@ -501,19 +711,19 @@
      offsets is not centred by its parent's `place-items`; it has to say so. */
   top: 50%;
   left: 50%;
-  width: 54px;
-  height: 54px;
+  width: 44px;
+  height: 44px;
   border: 2px solid var(--wax-deep);
   border-radius: 50%;
-  opacity: 0.42;
+  opacity: 0.38;
   /* Order matters: centre first, then the deliberate off-square strike. */
-  transform: translate(-50%, -50%) rotate(-11deg) translate(4px, -3px);
+  transform: translate(-50%, -50%) rotate(-11deg) translate(3px, -2px);
   background-image:
     linear-gradient(var(--wax-deep), var(--wax-deep)),
     linear-gradient(var(--wax-deep), var(--wax-deep)),
     linear-gradient(var(--wax-deep), var(--wax-deep));
-  background-size: 62% 2px;
-  background-position: 50% 34%, 50% 50%, 50% 66%;
+  background-size: 58% 2px;
+  background-position: 50% 32%, 50% 50%, 50% 68%;
   background-repeat: no-repeat;
 }
 
@@ -534,9 +744,14 @@
  * adding to it — omit it and this one card is the only unfibred surface in
  * the app.
  *
- * The rules run the full height rather than starting below the letterhead,
- * which is how ruled paper works: the date and the salutation go on the
- * lines too. */
+ * ON THE STRENGTH, because it was wrong and the fix is not obvious: a rule
+ * only reads as a feint when it is weaker than the lightest thing set on top
+ * of it. At `--rule`'s old alpha the 28px pitch happened to land a line just
+ * under "FROM" and through the descenders of "Letter 1 of 3", and at that
+ * weight they stopped being paper and became a border and a strike-through —
+ * the card looked like a table someone had mis-styled. The geometry is fine;
+ * it is the ink that was too dark. Halved in theme-letter.css §2, where the
+ * token lives. */
 .letter-card {
   position: relative;
 }
