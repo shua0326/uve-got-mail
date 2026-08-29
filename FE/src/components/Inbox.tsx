@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchInbox, markMailRead, type MailListItem } from "../api";
-import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/toast";
+import { Button, IconButton } from "./pouf/Button";
+import { Empty, ErrorNote, Skeleton } from "./pouf/feedback";
+import { Icon } from "./pouf/Icon";
+import { Row, Stack } from "./pouf/layout";
+import { Badge } from "./pouf/media";
+import { Card } from "./pouf/surface";
+import { Heading, Text } from "./pouf/text";
+import { toast } from "./pouf/toaster";
 
 /**
  * One letter at a time, navigable like a gallery.
@@ -67,9 +73,7 @@ export default function Inbox({ onView }: { onView: (mail: MailListItem) => void
         markMailRead(letter.id).catch((err) => {
           console.error("Failed to mark mail read", err);
           setMail((prev) => prev.map((m) => (m.id === letter.id ? { ...m, read: false } : m)));
-          toast.add({
-            type: "error",
-            title: "Couldn't mark that letter read",
+          toast.error("Couldn't mark that letter read", {
             description: err instanceof Error ? err.message : String(err),
           });
         });
@@ -80,71 +84,82 @@ export default function Inbox({ onView }: { onView: (mail: MailListItem) => void
   );
 
   if (status === "loading") {
-    return <div className="centered-status">Loading your mail…</div>;
+    return (
+      <div className="stage-center">
+        <div className="letter-card">
+          <Skeleton variant="card" />
+        </div>
+      </div>
+    );
   }
 
   if (status === "error") {
     return (
-      <div className="centered-status">
-        <p>Couldn't load your mail.</p>
-        <p className="inbox-error-detail">{error}</p>
+      <div className="stage-center">
+        <Stack gap={3}>
+          <Text>Couldn't load your mail.</Text>
+          <ErrorNote>{error}</ErrorNote>
+        </Stack>
       </div>
     );
   }
 
   if (count === 0 || !current) {
     return (
-      <div className="centered-status">
-        <p>Nothing delivered yet.</p>
-        <p className="inbox-empty-hint">
+      <div className="stage-center">
+        <Empty icon="mail" title="Nothing delivered yet.">
           Letters arrive together at your scheduled delivery time.
-        </p>
+        </Empty>
       </div>
     );
   }
 
   return (
-    <div className="inbox-gallery">
-      <Button
-        variant="outline"
-        size="icon-lg"
-        aria-label="Previous letter"
-        disabled={index === 0}
-        onClick={() => step(-1)}
-      >
-        ‹
-      </Button>
+    <div className="stage-center">
+      <Row gap={5} justify="center" align="center" wrap={false}>
+        <IconButton
+          icon={<Icon name="prev" />}
+          label="Previous letter"
+          variant="quiet"
+          size="lg"
+          disabled={index === 0}
+          onClick={() => step(-1)}
+        />
 
-      <article className="inbox-letter-card">
-        <header className="inbox-letter-head">
-          <span className="inbox-sender-name">
-            {current.sender?.username || current.sender?.email || current.senderId}
-          </span>
-          {!current.read && <span className="inbox-unread-badge">New</span>}
-        </header>
+        <div className="letter-card">
+          <Card motion="lift">
+            <Stack gap={4}>
+              <Row gap={3} justify="between" align="center">
+                <Heading level={3}>
+                  {current.sender?.username || current.sender?.email || current.senderId}
+                </Heading>
+                {!current.read && <Badge tone="purple">New</Badge>}
+              </Row>
 
-        <time className="inbox-letter-date" dateTime={current.sentAt}>
-          {formatSentAt(current.sentAt)}
-        </time>
+              <Text size="sm" muted>
+                {formatSentAt(current.sentAt)}
+              </Text>
 
-        <Button size="lg" onClick={() => open(current)}>
-          {current.read ? "Read again" : "Open letter"}
-        </Button>
+              <Button size="lg" block tone="purple" onClick={() => open(current)}>
+                {current.read ? "Read again" : "Open letter"}
+              </Button>
 
-        <p className="inbox-letter-position">
-          Letter {index + 1} of {count}
-        </p>
-      </article>
+              <Text size="sm" muted num>
+                Letter {index + 1} of {count}
+              </Text>
+            </Stack>
+          </Card>
+        </div>
 
-      <Button
-        variant="outline"
-        size="icon-lg"
-        aria-label="Next letter"
-        disabled={index >= count - 1}
-        onClick={() => step(1)}
-      >
-        ›
-      </Button>
+        <IconButton
+          icon={<Icon name="next" />}
+          label="Next letter"
+          variant="quiet"
+          size="lg"
+          disabled={index >= count - 1}
+          onClick={() => step(1)}
+        />
+      </Row>
     </div>
   );
 }
