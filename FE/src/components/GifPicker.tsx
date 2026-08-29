@@ -76,14 +76,14 @@ export default function GifPicker({ editor }: { editor: Editor }) {
     const assetId = AssetRecordType.createId()
     const shapeId = createShapeId()
 
-    // Single batch so the asset + shape land as one recorder frame (plan §1.4/§5.3).
+    // Single batch so the asset + shape land as one recorder frame.
     editor.run(() => {
       editor.createAssets([
         AssetRecordType.create({
           id: assetId,
           type: 'image',
           props: {
-            src: img.url, // remote Giphy CDN URL — never inlined as base64 (plan §1.4)
+            src: img.url, // remote Giphy CDN URL — never inlined as base64
             w,
             h,
             name: gif.title || 'gif',
@@ -191,7 +191,7 @@ export default function GifPicker({ editor }: { editor: Editor }) {
                 // Stays a raw button: pouf has no fluid image-tile component
                 // — `Figure` takes fixed width/height, which a responsive
                 // grid cell can't supply. Styled in index.css off pouf's own
-                // control radius. (DESIGN_MIGRATION_PLAN.md §9.6.)
+                // control radius.
                 <button
                   key={gif.id}
                   type="button"

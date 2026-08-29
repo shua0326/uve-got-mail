@@ -4,9 +4,9 @@ export const SAMPLE_RECORDING_ID = 'sample-letter'
 
 /**
  * A real, tiny recording captured through the actual composer (one short
- * draw stroke), bundled as a fixture — see IMPLEMENTATION_PLAN.md §14. The
- * inbox's mock-data fallback (src/data/mockInbox.ts) points its sample rows
- * at this id so "View last letter" has something genuinely viewable to
+ * draw stroke), bundled as a fixture. The inbox's mock-data fallback
+ * (src/data/mockInbox.ts) points its sample rows at this id so "View last
+ * letter" has something genuinely viewable to
  * load, instead of a fake id that always 404s against /recordings.
  */
 export const SAMPLE_RECORDING: Recording =

@@ -17,7 +17,7 @@ export const RECORDING_FORMAT_VERSION = 1
  */
 export const LETTER_PAGE = { x: 0, y: 0, w: 1600, h: 900 } as const
 
-/** A RecordsDiff stripped for forward-only application (see IMPLEMENTATION_PLAN.md §1.3). */
+/** A RecordsDiff stripped for forward-only application. */
 export interface ForwardDiff {
   a?: Record<string, unknown> // added:   id -> full record
   u?: Record<string, unknown> // updated: id -> `to` record ONLY
@@ -46,7 +46,7 @@ export interface Recording {
 }
 
 /** Strip a RecordsDiff down to the forward-only wire format. `from` is never read by
- * `store.applyDiff`, and `removed` values are discarded there too — see plan §1.3. */
+ * `store.applyDiff`, and `removed` values are discarded there too. */
 export function strip(diff: RecordsDiff<UnknownRecord>): ForwardDiff {
   const out: ForwardDiff = {}
 

@@ -49,10 +49,9 @@ function migrateForwardDiff(editor: Editor, d: ForwardDiff, persistedSchema: unk
 }
 
 /**
- * Drives an editor through a Recording on a virtual clock. See
- * IMPLEMENTATION_PLAN.md §4.
+ * Drives an editor through a Recording on a virtual clock.
  *
- * Cross-client schema migration (§4.1 step 2) is implemented: whole-snapshot
+ * Cross-client schema migration is implemented: whole-snapshot
  * loads (`loadStoreSnapshot`, used for the base state and backward-seek
  * keyframes) self-migrate against the schema embedded in the snapshot, so
  * those are wrapped in try/catch only to fail gracefully rather than crash.
@@ -118,9 +117,9 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
   )
 
   // Initial load: base state, readonly, camera framed to match the author,
-  // then fast-forward to the finished artwork (see IMPLEMENTATION_PLAN.md
-  // §13 — opening a letter shows the final result, not a blank canvas;
-  // Replay is an explicit action, not autoplay-on-open).
+  // then fast-forward to the finished artwork — opening a letter shows the
+  // final result, not a blank canvas; Replay is an explicit action, not
+  // autoplay-on-open.
   useEffect(() => {
     if (!editor || !recording) return
 
@@ -143,7 +142,7 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
     // record that carries `isReadonly` — and reseeds it with defaults, so
     // readonly must be (re)applied AFTER every snapshot load, never before,
     // or it's silently wiped and the recipient gets a fully editable
-    // canvas (draw tool, style panel, and all). See §13.
+    // canvas (draw tool, style panel, and all).
     editor.updateInstanceState({ isReadonly: true })
 
     if (failure) {
@@ -221,9 +220,9 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
       const targetFrame = targetFrameIndex === -1 ? recording.frames.length : targetFrameIndex
 
       if (targetFrame < nextFrameRef.current) {
-        // Seeking backward: §4.3 — restore the nearest keyframe at or before
-        // the target, then replay forward. We gave up reverseRecordsDiff in
-        // exchange for a smaller wire format (plan §1.3), so this is the way back.
+        // Seeking backward: restore the nearest keyframe at or before the
+        // target, then replay forward. We gave up reverseRecordsDiff in
+        // exchange for a smaller wire format, so this is the way back.
         const keyframe = [...recording.keyframes].reverse().find((k) => k.frameIndex <= targetFrame)
         try {
           editor.store.mergeRemoteChanges(() => {
@@ -237,7 +236,7 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
           setStatus('error')
           return
         } finally {
-          // See the initial-load effect's comment (§13): `loadStoreSnapshot`
+          // See the initial-load effect's comment: `loadStoreSnapshot`
           // wipes the instance record, so readonly must be reapplied after
           // every one of its calls, including this backward-seek path.
           editor.updateInstanceState({ isReadonly: true })

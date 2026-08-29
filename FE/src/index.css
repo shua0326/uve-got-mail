@@ -2,7 +2,7 @@
  * App layout — POSITIONING ONLY.
  *
  * 1st-Pouf owns every pixel of *appearance*: colour, type, radii, cushions,
- * spacing inside a component. Per the pouf conventions (docs §7) its
+ * spacing inside a component. Per the pouf conventions, its
  * components take no `className` or `style`, so appearance can't drift
  * off-system one utility at a time — and nothing in this file tries to.
  *

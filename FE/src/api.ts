@@ -3,14 +3,13 @@ import type { Recording } from "./replay/format";
 import { supabase } from "./lib/supabaseClient";
 
 // Relative — routed through Vite's dev proxy (vite.config.ts) so requests
-// stay same-origin. See IMPLEMENTATION_PLAN.md §8.
+// stay same-origin.
 const API_BASE = "";
 
 // Attaches the current Supabase session's access token, if any, to a
 // backend request. Sent on every call (not just the routes BE currently
 // guards with requireAuth) so nothing needs to change on the FE side when
-// the backend adds auth to a route it doesn't check yet — see the auth
-// footnote in IMPLEMENTATION_PLAN.md for which routes that is today.
+// the backend adds auth to a route it doesn't check yet.
 async function authHeaders(): Promise<HeadersInit> {
   const {
     data: { session },

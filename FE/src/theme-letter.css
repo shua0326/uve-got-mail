@@ -3,9 +3,9 @@
  *
  * WHY THIS IS A SEPARATE FILE, and not edits inside `pouf/pouf.css`:
  *
- *   design_handoff.txt §2 records that a future `shadcn add` of any pouf
- *   registry item SILENTLY reverts local edits to it, and asks that such
- *   edits carry a `LOCAL EDIT` banner so a grep can find them. `pouf.css` is
+ *   A future `shadcn add` of any pouf registry item SILENTLY reverts local
+ *   edits to it, so such edits carry a `LOCAL EDIT` banner that a grep can
+ *   find. `pouf.css` is
  *   a registry file. Re-theming it in place would put the app's entire visual
  *   identity one re-install away from vanishing.
  *
@@ -45,8 +45,8 @@
  *   are the reason the system works and none of them are about hue:
  *
  *     - ink on pastel, never white. Measured ratios are noted in §2.
- *     - depth, not colour, signals state (design_handoff.txt §4's note about
- *       `Segmented`). Nothing here replaces a shadow with a background.
+ *     - depth, not colour, signals state (see `Segmented`). Nothing here
+ *       replaces a shadow with a background.
  * ========================================================================= */
 
 /* ============================================================================
@@ -254,7 +254,7 @@
  *
  * Applied as a BACKGROUND-IMAGE on the surfaces themselves rather than as one
  * fixed overlay across the viewport, which is the only way to honour the
- * decision in design_handoff.txt §3 — "pouf chrome, NEUTRAL drawing surface".
+ * decision that pouf owns the chrome and the drawing surface stays NEUTRAL.
  * A letter is somebody's drawing, and texturing the paper under it would land
  * on every stroke and every GIF. Painted per-surface, the grain reaches the
  * page, the cards and the dialogs, and stops at the edge of the canvas.
@@ -309,7 +309,7 @@ body {
  *
  * `Empty` renders that title through `Text`, not through `Heading`, so a rule
  * aimed at `.pouf-h3` matches nothing. And `Text` renders a <span>, not the
- * <p> design_handoff.txt §8 assumes — checked in the DOM, because the Blob
+ * <p> you would assume — checked in the DOM, because the Blob
  * above it is also a <span> and a `:first-of-type` guess would have silently
  * selected that instead. The title is the first `.pouf-text` FOLLOWING the
  * blob; the optional second one is the muted body copy under it. */
@@ -381,8 +381,8 @@ body {
 
 /* -- Quiet + explicitly pink: the declining action ------------------------
  *
- * design_handoff.txt §3 records the decision that Decline is
- * `tone="pink" variant="quiet"`, because pouf has no `destructive`. Worth
+ * Decline is `tone="pink" variant="quiet"`, because pouf has no
+ * `destructive`. Worth
  * knowing before touching this: in pouf as shipped, that decision renders
  * NOTHING. The quiet variant hard-codes its ring colour and never reads
  * `--tone` at all, so Decline was pixel-identical to "Sign out" and to every

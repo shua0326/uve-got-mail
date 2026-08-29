@@ -13,10 +13,9 @@ import { toast } from "./pouf/toaster";
  * — so there's nothing to check before submitting.
  *
  * It owns its own `open` state and renders its own trigger. Pouf's `Dialog`
- * requires a `trigger` (DESIGN_MIGRATION_PLAN.md §4.2), and the honest way to
- * satisfy that is for the button and the dialog to be the same component
- * rather than a hidden placeholder standing in for a button that lives in
- * another file. The caller just drops <AddFriendDialog /> where the button
+ * requires a `trigger`, and the honest way to satisfy that is for the button
+ * and the dialog to be the same component rather than a hidden placeholder
+ * standing in for a button that lives in another file. The caller just drops <AddFriendDialog /> where the button
  * should appear.
  */
 export default function AddFriendDialog() {

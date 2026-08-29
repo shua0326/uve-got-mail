@@ -10,9 +10,9 @@
  * state instead of letting the browser jump.
  *
  * Sanctioned by the pouf conventions: "When you genuinely need an escape hatch
- * that no variant covers, you own the file — edit it." Recorded in
- * DESIGN_MIGRATION_PLAN.md §4.1. If a future `shadcn add` overwrites navbar.tsx
- * this comment disappears with it — that is the tell, and the fix is to
+ * that no variant covers, you own the file — edit it." If a future
+ * `shadcn add` overwrites navbar.tsx this comment disappears with it — that
+ * is the tell, and the fix is to
  * re-apply the three marked lines below.
  * ─────────────────────────────────────────────────────────────────────── */
 

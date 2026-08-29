@@ -57,8 +57,8 @@ export default defineConfig({
     // what's registered there.
     port: 5173,
     strictPort: true,
-    // IMPLEMENTATION_PLAN.md §8: proxy backend routes through the dev server
-    // so the frontend calls them same-origin — avoids CORS/cross-port issues
+    // Proxy backend routes through the dev server so the frontend calls them
+    // same-origin — avoids CORS/cross-port issues
     // entirely rather than relying on the backend's CORS headers.
     proxy: {
       '/auth': BACKEND,

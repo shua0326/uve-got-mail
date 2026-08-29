@@ -276,7 +276,7 @@ export default function LetterPlayer({
         onMount={handleMount}
         // Nothing of tldraw's own, at all.
         //
-        // Readonly (usePlayer.ts §13) already filtered the toolbar down to
+        // Readonly (see usePlayer.ts) already filtered the toolbar down to
         // Select/Hand/Laser and the style panel was hidden explicitly — but
         // that still left a toolbar, a main menu, a page menu and a zoom
         // stepper with a minimap around the letter, in three of its four

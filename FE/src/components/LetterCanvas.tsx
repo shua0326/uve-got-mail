@@ -36,12 +36,12 @@ const CAMERA_OPTIONS = {
   },
 }
 
-// A letter is one page. The recorder only captures document-scope diffs
-// (§1.2), and which page is *current* is instance/session state, not
-// document state — so a second page's shapes are recorded but the replay
-// never switches to it, and the recipient sees a blank canvas (see
-// IMPLEMENTATION_PLAN.md §14). Rather than teach the recorder/player about
-// multiple pages, page creation is removed from the composer outright.
+// A letter is one page. The recorder only captures document-scope diffs,
+// and which page is *current* is instance/session state, not document state
+// — so a second page's shapes are recorded but the replay never switches to
+// it, and the recipient sees a blank canvas. Rather than teach the
+// recorder/player about multiple pages, page creation is removed from the
+// composer outright.
 // There are three distinct ways tldraw lets a user create a page, all
 // closed here: the page-menu dropdown (hidden via `components`), the
 // shape-context-menu "Move to new page" action, and the alt+arrow
