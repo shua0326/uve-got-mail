@@ -61,19 +61,19 @@ services:
       # the suffix isn't guaranteed to stay the same.
       - type: rewrite
         source: /auth/*
-        destination: https://uve-got-mail-backend-pmo8.onrender.com/auth/*
+        destination: https://uve-got-mail-backend-v7hh.onrender.com/auth/*
       - type: rewrite
         source: /giphy/*
-        destination: https://uve-got-mail-backend-pmo8.onrender.com/giphy/*
+        destination: https://uve-got-mail-backend-v7hh.onrender.com/giphy/*
       - type: rewrite
         source: /mail/*
-        destination: https://uve-got-mail-backend-pmo8.onrender.com/mail/*
+        destination: https://uve-got-mail-backend-v7hh.onrender.com/mail/*
       - type: rewrite
         source: /user/*
-        destination: https://uve-got-mail-backend-pmo8.onrender.com/user/*
+        destination: https://uve-got-mail-backend-v7hh.onrender.com/user/*
       - type: rewrite
         source: /friends/*
-        destination: https://uve-got-mail-backend-pmo8.onrender.com/friends/*
+        destination: https://uve-got-mail-backend-v7hh.onrender.com/friends/*
       - type: rewrite
         source: /*
         destination: /index.html
