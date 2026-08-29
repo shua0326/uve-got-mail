@@ -1,0 +1,28 @@
+services:
+  # 1. THE BACKEND SERVICE
+  - type: web
+    name: uve-got-mail-backend
+    env: docker
+    rootDir: BE
+    dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - BE/**
+    envVars:
+      - key: PORT
+        value: 8888
+      - key: DATABASE_URL
+        sync: false # You will input the actual DB URL in the Render dashboard securely
+
+  # 2. THE FRONTEND SERVICE
+  - type: web
+    name: uve-got-mail-frontend
+    env: docker
+    rootDir: FE
+    dockerfilePath: ./Dockerfile
+    buildFilter:
+      paths:
+        - FE/**
+    envVars:
+      - key: BACKEND_URL
+        value: https://uve-got-mail-backend.onrender.com # Points frontend to the live backend
