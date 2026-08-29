@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor } from 'tldraw'
 import { squashRecordDiffs } from '@tldraw/store'
 import { toRecordsDiff, type ForwardDiff, type Recording } from './format'
+import { frameLetterPage } from './useLetterFrame'
 
 export type PlayerStatus = 'idle' | 'playing' | 'paused' | 'finished' | 'error'
 
@@ -164,7 +165,17 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
       setPlayhead(recording.durationMs)
       setStatus('finished')
     }
-    requestAnimationFrame(() => editor.zoomToFit())
+    // Frame THE PAGE, not the shapes — and do it here as well as in
+    // `useLetterFrame`, because `loadStoreSnapshot` above reseeds the store,
+    // camera record included, so whatever the hook framed on mount has just
+    // been thrown away.
+    //
+    // This was `editor.zoomToFit()`, whose comment above claims the camera is
+    // "framed to match the author" — the one thing zoomToFit cannot do. It
+    // fits the bounding box of whatever was DRAWN, so a letter with one small
+    // mark in a corner opened blown up to fill the screen, and a letter drawn
+    // wide opened overflowing its own sheet. Neither is what the author saw.
+    requestAnimationFrame(() => frameLetterPage(editor))
 
     return () => {
       loadedRef.current = false
@@ -230,6 +241,13 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
           // wipes the instance record, so readonly must be reapplied after
           // every one of its calls, including this backward-seek path.
           editor.updateInstanceState({ isReadonly: true })
+          // And the camera record goes with it, which is the same bug wearing
+          // different clothes: the store is reseeded with defaults, so zoom
+          // drops back to 100% and the letter jumps to a crop of its own
+          // top-left corner. Reproduced by pressing Replay, or by dragging the
+          // scrubber backwards at all. Reframed here for the same reason
+          // readonly is: this is where the snapshot was replaced.
+          frameLetterPage(editor)
         }
         nextFrameRef.current = keyframe?.frameIndex ?? 0
       }

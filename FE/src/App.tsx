@@ -8,12 +8,12 @@ import SendLetterDialog from './components/SendLetterDialog'
 import LetterCanvas from './components/LetterCanvas'
 import LetterPlayer from './components/LetterPlayer'
 import Login from './components/Login'
+import Stage from './components/Stage'
 import SetUsername from './components/SetUsername'
 import UserProfile from './components/UserProfile'
 import { Button } from './components/pouf/Button'
 import { ErrorNote, Skeleton } from './components/pouf/feedback'
-import { Row, Stack } from './components/pouf/layout'
-import { Card } from './components/pouf/surface'
+import { Stack } from './components/pouf/layout'
 import { Toaster } from './components/pouf/toaster'
 import { encode } from './replay/codec'
 import type { Recording } from './replay/format'
@@ -181,6 +181,9 @@ function App() {
   }, [])
 
   const activeTab: Tab = isTab(mode) ? mode : returnTo
+  // The two screens that mount a tldraw editor and therefore build their own
+  // Stage. Everything else is a panel the shell frames for it.
+  const isCanvasMode = mode === 'compose' || (mode === 'play' && recording !== null)
 
   if (sessionStatus === 'loading') {
     return (
@@ -212,49 +215,35 @@ function App() {
             running on the port in BE/.env.
           </ErrorNote>
         )}
-        <div id="whiteboard-container">
+        <div className="desk">
           {/* `mode="wait"` and not the default: two screens cross-fading here
               would mean two tldraw editors mounted at once, each with its own
               store and its own rAF loop, over the same box. The outgoing
               sheet leaves before the next one is laid down. */}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div key={mode} className="stage-anim" {...(reduceMotion ? PAGE_STILL : PAGE)}>
-          {mode === 'inbox' && <Inbox onView={handleViewMail} />}
-          {mode === 'requests' && <Requests />}
-          {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
-          {mode === 'profile' && user && <UserProfile user={user} onUpdated={setUser} />}
-          {mode === 'loading' && (
-            <div className="stage-center">
-              <Skeleton variant="card" />
-            </div>
-          )}
-          {mode === 'load-error' && (
-            <div className="stage-center">
-              <Stack gap={4}>
-                <ErrorNote>{loadError}</ErrorNote>
-                <Button tone="purple" onClick={handleBack}>
-                  Back to inbox
-                </Button>
-              </Stack>
-            </div>
-          )}
-          {mode === 'play' && recording && (
-            <>
-              <LetterPlayer
-                recording={recording}
-                onBack={handleBack}
-                // The player is reached two ways, and its back button should
-                // say which one — "compose" is a lie when you arrived from
-                // the inbox or a shared ?letter= link.
-                backLabel={returnTo === 'compose' ? 'Back to compose' : 'Back to inbox'}
-              />
-              {draft && (
-                // Rendered only while a draft exists — which is exactly
-                // when its trigger button should be on screen. The dialog
-                // owns its own open state; App only owns the draft.
-                <div className="hud hud--top">
-                  <Card variant="tight">
-                    <Row gap={3} justify="center">
+              {/* The two canvas screens render their own `Stage`, because only
+                  they know what goes in its bars. Everything else is a panel
+                  with no chrome of its own, so the shell supplies the bare
+                  frame for it. */}
+              {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
+
+              {mode === 'play' && recording && (
+                <LetterPlayer
+                  recording={recording}
+                  onBack={handleBack}
+                  // The player is reached two ways, and its back button should
+                  // say which one — "compose" is a lie when you arrived from
+                  // the inbox or a shared ?letter= link.
+                  backLabel={returnTo === 'compose' ? 'Back to compose' : 'Back to inbox'}
+                  // Rendered only while a draft exists — which is exactly when
+                  // its trigger should be on screen. The dialog owns its own
+                  // open state; App only owns the draft. It goes in the
+                  // player's top bar rather than over the letter: sending is
+                  // the one thing you do to a letter you have just previewed,
+                  // and it belongs beside the preview, not on top of it.
+                  action={
+                    draft ? (
                       <SendLetterDialog
                         letter={draft}
                         onSent={() => {
@@ -262,12 +251,33 @@ function App() {
                           handleNavigate('inbox')
                         }}
                       />
-                    </Row>
-                  </Card>
-                </div>
+                    ) : undefined
+                  }
+                />
               )}
-            </>
-          )}
+
+              {!isCanvasMode && (
+                <Stage>
+                  {mode === 'inbox' && <Inbox onView={handleViewMail} />}
+                  {mode === 'requests' && <Requests />}
+                  {mode === 'profile' && user && <UserProfile user={user} onUpdated={setUser} />}
+                  {mode === 'loading' && (
+                    <div className="stage-center">
+                      <Skeleton variant="card" />
+                    </div>
+                  )}
+                  {mode === 'load-error' && (
+                    <div className="stage-center">
+                      <Stack gap={4}>
+                        <ErrorNote>{loadError}</ErrorNote>
+                        <Button tone="purple" onClick={handleBack}>
+                          Back to inbox
+                        </Button>
+                      </Stack>
+                    </div>
+                  )}
+                </Stage>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
