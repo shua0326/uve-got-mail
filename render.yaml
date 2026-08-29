@@ -2,6 +2,7 @@ services:
   # 1. THE BACKEND SERVICE
   - type: web
     name: uve-got-mail-backend
+    plan: free
     env: docker
     rootDir: BE
     dockerfilePath: ./Dockerfile
@@ -17,6 +18,7 @@ services:
   # 2. THE FRONTEND SERVICE
   - type: web
     name: uve-got-mail-frontend
+    plan: free
     env: docker
     rootDir: FE
     dockerfilePath: ./Dockerfile
