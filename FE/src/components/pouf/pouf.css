@@ -511,7 +511,7 @@
   border-radius: var(--r-card) 0 0 var(--r-card);
   padding: var(--s6);
   /* Edge-pinned like .pouf-sheet: keep the full s6 clearance above the floor
-     lip rather than re-centring (docs/pouf-optical-centering-research.md). */
+     lip rather than re-centring. */
   padding-bottom: calc(var(--s6) + var(--lip));
   box-shadow: var(--pouf-card);
   overflow-y: auto;
@@ -1236,8 +1236,8 @@
 /* A full pastel cushion, tone-filled — this is the claymorphism the whole app
  * speaks (bold, bright, kid-shaped), and it is deliberately NOT the neutral,
  * semantic-colour-free snackbar that Material 3 and general best-practice would
- * steer you toward. That guidance (docs/pouf-components-research.md) fits a
- * restrained system; here the brief's colourful fill wins, so the tone stays on
+ * steer you toward. That guidance fits a restrained system; here the brief's
+ * colourful fill wins, so the tone stays on
  * the whole surface. The icon rides a translucent-white halo — a clay highlight,
  * not a foreign tile — and dark ink on the pastel clears contrast. */
 .pouf-toast {

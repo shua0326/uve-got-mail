@@ -23,7 +23,7 @@
  * `id` that `aria-labelledby` points at.
  *
  * If a future `shadcn add` overwrites controls.tsx this comment disappears
- * with it — that is the tell. Recorded against DESIGN_MIGRATION_PLAN.md §4.2.
+ * with it — that is the tell.
  * ─────────────────────────────────────────────────────────────────────── */
 
 import * as RSelect from '@radix-ui/react-select'

@@ -109,9 +109,9 @@ export async function getMail(req: Request, res: Response): Promise<void> {
     const id = typeof req.params.id === "string" ? req.params.id : undefined;
     const mail = id ? await prisma.mail.findUnique({ where: { recordingId: id } }) : null;
 
-    // IMPLEMENTATION_PLAN.md §6.3: the caller must be the sender, or the
-    // recipient of a letter in their current delivery window. A recipient
-    // asking before delivery gets the same 404 as a stranger — telling them
+    // The caller must be the sender, or the recipient of a letter in their
+    // current delivery window. A recipient asking before delivery gets the
+    // same 404 as a stranger — telling them
     // the letter exists would leak that mail is in flight, which is exactly
     // what the scheduled-delivery model is meant to hide. `archived` is
     // excluded too: a retired letter is gone for good, so a saved link to one

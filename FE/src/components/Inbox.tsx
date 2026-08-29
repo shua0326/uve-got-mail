@@ -138,10 +138,10 @@ export default function Inbox({ onView }: { onView: (mail: MailListItem) => void
                   <Heading level={3}>
                     {current.sender?.username || current.sender?.email || current.senderId}
                   </Heading>
-                  {/* `<time>` restored (design_handoff.txt §8 records it was
-                      lost in the pouf migration): pouf has no time primitive
-                      and `Text` renders a span, so the machine-readable value
-                      is carried by a plain wrapper around it. */}
+                  {/* `<time>` restored after being lost in the pouf
+                      migration: pouf has no time primitive and `Text`
+                      renders a span, so the machine-readable value is
+                      carried by a plain wrapper around it. */}
                   <time className="dateline" dateTime={current.sentAt}>
                     {formatSentAt(current.sentAt)}
                   </time>

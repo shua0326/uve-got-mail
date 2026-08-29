@@ -84,10 +84,9 @@ function App() {
   const [draft, setDraft] = useState<Blob | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
-  // Cross-client replay (IMPLEMENTATION_PLAN.md §4.1 step 1): a second
-  // browser/tab opening this same URL fetches the gzipped recording over
-  // HTTP from the backend and replays it independently — no shared React
-  // state with whichever client composed it.
+  // Cross-client replay: a second browser/tab opening this same URL fetches
+  // the gzipped recording over HTTP from the backend and replays it
+  // independently — no shared React state with whichever client composed it.
   useEffect(() => {
     const id = letterIdFromUrl()
     if (!id) return
@@ -137,8 +136,8 @@ function App() {
     setMode('play')
     setDraft(null)
 
-    // Step 3.4 measurement gate (IMPLEMENTATION_PLAN.md §3.4): log recording
-    // size so it's easy to see whether bucketing/stripping/gzip are enough.
+    // Measurement gate: log recording size so it's easy to see whether
+    // bucketing/stripping/gzip are enough.
     const raw = JSON.stringify(rec)
     const gz = await encode(rec)
     console.info(

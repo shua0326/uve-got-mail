@@ -19,9 +19,9 @@ import { toast } from "./pouf/toaster";
  * pair on their first letter.
  *
  * Owns its `open` state and renders its own trigger, for the reason given in
- * AddFriendDialog: pouf's `Dialog` requires a real `trigger` element
- * (DESIGN_MIGRATION_PLAN.md §4.2). The caller renders this where the "send"
- * button belongs — which is only ever while a draft exists.
+ * AddFriendDialog: pouf's `Dialog` requires a real `trigger` element. The
+ * caller renders this where the "send" button belongs — which is only ever
+ * while a draft exists.
  *
  * TWO STEPS, ON PURPOSE
  *

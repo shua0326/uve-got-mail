@@ -5,6 +5,7 @@ import { LETTER_PAGE, type Recording } from '../replay/format'
 import GifPicker from './GifPicker'
 import Stage from './Stage'
 import { useLetterFrame } from '../replay/useLetterFrame'
+import { TLDRAW_LICENSE_KEY } from '../lib/tldrawLicense'
 import { Button } from './pouf/Button'
 import { Row } from './pouf/layout'
 import { Status } from './pouf/status'
@@ -35,12 +36,12 @@ const CAMERA_OPTIONS = {
   },
 }
 
-// A letter is one page. The recorder only captures document-scope diffs
-// (§1.2), and which page is *current* is instance/session state, not
-// document state — so a second page's shapes are recorded but the replay
-// never switches to it, and the recipient sees a blank canvas (see
-// IMPLEMENTATION_PLAN.md §14). Rather than teach the recorder/player about
-// multiple pages, page creation is removed from the composer outright.
+// A letter is one page. The recorder only captures document-scope diffs,
+// and which page is *current* is instance/session state, not document state
+// — so a second page's shapes are recorded but the replay never switches to
+// it, and the recipient sees a blank canvas. Rather than teach the
+// recorder/player about multiple pages, page creation is removed from the
+// composer outright.
 // There are three distinct ways tldraw lets a user create a page, all
 // closed here: the page-menu dropdown (hidden via `components`), the
 // shape-context-menu "Move to new page" action, and the alt+arrow
@@ -151,6 +152,9 @@ export default function LetterCanvas({ onFinish }: { onFinish: (recording: Recor
       }
     >
       <Tldraw
+        // Without this the editor runs unlicensed. See lib/tldrawLicense.ts
+        // for why it is `undefined` and not `''` when unconfigured.
+        licenseKey={TLDRAW_LICENSE_KEY}
         options={CAMERA_OPTIONS}
         onMount={handleMount}
         components={COMPOSER_COMPONENTS}

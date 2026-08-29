@@ -105,7 +105,7 @@ export function dismissToast(id: string) {
 /** Comes in from the side, tiny, and fades up to full size — a gentle spring,
  * not a bounce (the bouncy version fought the layout reflow and stuttered).
  * Tuned live in docs/toast-anim-playground.html. Under prefers-reduced-motion it
- * collapses to a plain opacity fade — WCAG 2.3.3. (docs/pouf-components-research.md) */
+ * collapses to a plain opacity fade — WCAG 2.3.3. */
 function toastMotion(reduce: boolean) {
   if (reduce) {
     return {

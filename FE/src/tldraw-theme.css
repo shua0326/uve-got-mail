@@ -67,9 +67,9 @@
  * comment existed because index.css swapped its palette on
  * `prefers-color-scheme` while tldraw picks its theme from a class it
  * controls, so the two could disagree and yield a light canvas in dark mode.
- * The app is now light-only and pinned via <html data-theme="light">
- * (DESIGN_MIGRATION_PLAN.md §0), so there is one palette and nothing to
- * disagree about. `.tl-theme__dark` is gone for the same reason.
+ * The app is now light-only and pinned via <html data-theme="light">, so
+ * there is one palette and nothing to disagree about. `.tl-theme__dark` is
+ * gone for the same reason.
  */
 .tl-theme__light {
   /* The paper — held NEUTRAL on purpose, and it stays neutral through the

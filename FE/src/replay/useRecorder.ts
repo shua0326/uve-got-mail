@@ -9,7 +9,7 @@ const KEYFRAME_EVERY_N_FRAMES = 100
 
 /**
  * Captures document-scope, user-sourced store changes into a time-bucketed
- * Recording. See IMPLEMENTATION_PLAN.md §3.3.
+ * Recording.
  */
 export function useRecorder(editor: Editor | null) {
   const [isRecording, setIsRecording] = useState(false)
