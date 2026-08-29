@@ -5,6 +5,7 @@ import { LETTER_PAGE, type Recording } from '../replay/format'
 import GifPicker from './GifPicker'
 import Stage from './Stage'
 import { useLetterFrame } from '../replay/useLetterFrame'
+import { TLDRAW_LICENSE_KEY } from '../lib/tldrawLicense'
 import { Button } from './pouf/Button'
 import { Row } from './pouf/layout'
 import { Status } from './pouf/status'
@@ -151,6 +152,9 @@ export default function LetterCanvas({ onFinish }: { onFinish: (recording: Recor
       }
     >
       <Tldraw
+        // Without this the editor runs unlicensed. See lib/tldrawLicense.ts
+        // for why it is `undefined` and not `''` when unconfigured.
+        licenseKey={TLDRAW_LICENSE_KEY}
         options={CAMERA_OPTIONS}
         onMount={handleMount}
         components={COMPOSER_COMPONENTS}
