@@ -79,12 +79,34 @@ export async function deliverDueMail(now: Date = new Date()): Promise<DeliveryRe
     // old window and open the new one atomically, or a reader between the two
     // statements would see either nothing or two windows at once.
     const result = await prisma.$transaction(async (tx) => {
-      const retired = await tx.mail.updateMany({
+      // One grouped read for both numbers, taken before either write.
+      //
+      // Neither `updateMany().count` nor a pair of `count()` calls can be
+      // trusted here: under node-cron 4.6.0's task execution, a statement that
+      // repeats the shape of an earlier one in the same transaction comes back
+      // with the earlier one's result — `updateMany` commits its rows but
+      // reports 0, and a second `count()` re-answers the first count's
+      // predicate. The writes themselves are always correct; only the numbers
+      // lie. The same code reports correctly from an HTTP handler, a plain
+      // setInterval, or a one-shot script, so it is specific to how the cron
+      // task is invoked. A single groupBy sidesteps it: one statement, one
+      // result, and it reads accurately in every context tested.
+      const buckets = await tx.mail.groupBy({
+        by: ["received", "archived"],
+        where: { recipientId: user.id },
+        _count: true,
+      });
+      const bucket = (received: boolean, archived: boolean) =>
+        buckets.find((b) => b.received === received && b.archived === archived)?._count ?? 0;
+      const retiring = bucket(true, false);
+      const delivering = bucket(false, false);
+
+      await tx.mail.updateMany({
         where: { recipientId: user.id, received: true, archived: false },
         data: { archived: true },
       });
 
-      const delivered = await tx.mail.updateMany({
+      await tx.mail.updateMany({
         where: { recipientId: user.id, received: false, archived: false },
         data: { received: true },
       });
@@ -94,7 +116,7 @@ export async function deliverDueMail(now: Date = new Date()): Promise<DeliveryRe
         data: { scheduledMail: randomDeliveryTime(now) },
       });
 
-      return { archived: retired.count, delivered: delivered.count };
+      return { archived: retiring, delivered: delivering };
     });
 
     report.delivered += result.delivered;

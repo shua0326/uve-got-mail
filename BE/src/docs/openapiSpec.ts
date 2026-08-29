@@ -177,7 +177,11 @@ export const openapiSpec = {
     "/mail/{id}": {
       get: {
         summary: "Download the gzipped recording bytes for a mail's attachment",
-        description: "`id` is the Recording id (Mail.recordingId), not the mail's own id.",
+        description:
+          "`id` is the Recording id (Mail.recordingId), not the mail's own id. " +
+          "The caller must be the sender, or the recipient of a letter in their current " +
+          "delivery window (`received` and not `archived`); anyone else — including the " +
+          "recipient before delivery, or after the letter has been retired — gets 404.",
         tags: ["Mail"],
         security: [{ bearerAuth: [] }],
         parameters: [
@@ -189,7 +193,7 @@ export const openapiSpec = {
             content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
           },
           "404": {
-            description: "Recording not found",
+            description: "Recording not found, or not the caller's to read",
             content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
           },
         },
