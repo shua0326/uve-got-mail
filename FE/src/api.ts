@@ -105,3 +105,38 @@ export async function fetchInbox(): Promise<MailListItem[]> {
   if (!res.ok) throw new Error(`Inbox fetch failed: ${res.status}`);
   return (await res.json()) as MailListItem[];
 }
+
+// --- User (BE/src/routes/mailUserRoutes.ts, mounted at /user) -----------
+
+/** The `user` object `POST /auth/callback` echoes back. On first login the
+ * backend seeds `username` with the email (authController.ts), which is the
+ * signal that the user still needs to pick one. */
+export interface AuthUser {
+  id: string;
+  email: string;
+  username: string;
+}
+
+/** A freshly created account has `username === email` — see
+ * BE/src/controllers/auth/authController.ts. */
+export function needsUsername(user: AuthUser): boolean {
+  return user.username === user.email;
+}
+
+export class UsernameTakenError extends Error {
+  constructor() {
+    super("That username is already taken.");
+    this.name = "UsernameTakenError";
+  }
+}
+
+export async function updateUsername(userId: string, username: string): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/user/${encodeURIComponent(userId)}/username`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ username }),
+  });
+  if (res.status === 409) throw new UsernameTakenError();
+  if (!res.ok) throw new Error(`Couldn't save username (${res.status})`);
+  return (await res.json()) as AuthUser;
+}

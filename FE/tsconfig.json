@@ -1,5 +1,12 @@
 {
   "files": [],
+  "compilerOptions": {
+    // No `baseUrl`: deprecated in TS 6, removed in 7. `paths` entries
+    // resolve relative to this file, which is what we want anyway.
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }

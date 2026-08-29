@@ -1,3 +1,29 @@
+/* Tailwind's preflight resets buttons to bare text — no background, border,
+ * padding or pointer cursor. Eleven buttons across the app (Header, Login,
+ * SetUsername, LetterPlayer, GifPicker, LetterCanvas) relied on the browser
+ * default, so restore one here.
+ *
+ * In `@layer base` deliberately, same trick as tldraw-theme.css: it beats
+ * preflight (later in the same layer — App.css is the last stylesheet
+ * main.tsx pulls in) while losing to every unlayered rule, so tldraw's own
+ * `.tlui-button` chrome and the class-based buttons below are both safe. */
+@layer base {
+  button {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: #222;
+    padding: 6px 14px;
+    font: 14px system-ui, sans-serif;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
 body {
   margin: 0;
   display: flex;
@@ -52,8 +78,8 @@ body {
 }
 
 #whiteboard-container {
-  border: 1px solid #ccc;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   width: 92vw;
   height: 80vh;
   position: relative;
@@ -324,4 +350,56 @@ body {
 
 .share-banner code {
   font-size: 11px;
+}
+.set-username-title {
+  margin: 0;
+  font: 600 20px system-ui, sans-serif;
+}
+
+.set-username-hint {
+  margin: 0;
+  font: 13px system-ui, sans-serif;
+  color: #666;
+}
+
+.set-username-form {
+  display: flex;
+  gap: 8px;
+}
+
+.set-username-input {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font: 15px system-ui, sans-serif;
+}
+
+.set-username-input:focus {
+  outline: 2px solid #3b82f6;
+  border-color: transparent;
+}
+
+.set-username-error {
+  margin: 0;
+  font: 13px system-ui, sans-serif;
+  color: #b91c1c;
+}
+
+.set-username-signout {
+  margin-top: 12px;
+  background: none;
+  border: none;
+  color: #666;
+  font: 13px system-ui, sans-serif;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.backend-banner {
+  padding: 6px 14px;
+  background: #fef3c7;
+  border-bottom: 1px solid #fcd34d;
+  font: 12px system-ui, sans-serif;
+  color: #92400e;
+  text-align: center;
 }
