@@ -55,21 +55,25 @@ services:
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
     routes:
+      # NOTE: uve-got-mail-backend was already taken on Render, so the live
+      # service got the -pmo8 suffix (same as this frontend). If either
+      # service is ever deleted and recreated, re-check its dashboard URL —
+      # the suffix isn't guaranteed to stay the same.
       - type: rewrite
         source: /auth/*
-        destination: https://uve-got-mail-backend.onrender.com/auth/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/auth/*
       - type: rewrite
         source: /giphy/*
-        destination: https://uve-got-mail-backend.onrender.com/giphy/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/giphy/*
       - type: rewrite
         source: /mail/*
-        destination: https://uve-got-mail-backend.onrender.com/mail/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/mail/*
       - type: rewrite
         source: /user/*
-        destination: https://uve-got-mail-backend.onrender.com/user/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/user/*
       - type: rewrite
         source: /friends/*
-        destination: https://uve-got-mail-backend.onrender.com/friends/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/friends/*
       - type: rewrite
         source: /*
         destination: /index.html
