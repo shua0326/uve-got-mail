@@ -1,21 +1,31 @@
 import { useCallback, useEffect, useState } from 'react'
-import './App.css'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useSession } from './auth/useSession'
-import AddFriendDialog from './components/AddFriendDialog'
 import Header, { type Tab } from './components/Header'
 import Inbox from './components/Inbox'
 import Requests from './components/Requests'
 import SendLetterDialog from './components/SendLetterDialog'
-import { Toaster } from '@/components/ui/toast'
 import LetterCanvas from './components/LetterCanvas'
 import LetterPlayer from './components/LetterPlayer'
 import Login from './components/Login'
 import SetUsername from './components/SetUsername'
+import UserProfile from './components/UserProfile'
+import { Button } from './components/pouf/Button'
+import { ErrorNote, Skeleton } from './components/pouf/feedback'
+import { Row, Stack } from './components/pouf/layout'
+import { Card } from './components/pouf/surface'
+import { Toaster } from './components/pouf/toaster'
 import { encode } from './replay/codec'
 import type { Recording } from './replay/format'
 import { loadLetter, needsUsername, type MailListItem } from './api'
 
-type Mode = 'inbox' | 'compose' | 'requests' | 'play' | 'loading' | 'load-error'
+type Mode = Tab | 'play' | 'loading' | 'load-error'
+
+const TABS: Tab[] = ['inbox', 'compose', 'requests', 'profile']
+
+function isTab(mode: Mode): mode is Tab {
+  return (TABS as Mode[]).includes(mode)
+}
 
 function letterIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get('letter')
@@ -27,8 +37,40 @@ function clearLetterParam() {
   window.history.replaceState({}, '', url)
 }
 
+/**
+ * How a screen arrives.
+ *
+ * The premise of this product is that a letter does not turn up when you want
+ * it to, and an interface that snaps between screens is arguing with that. So
+ * a screen is a sheet being laid onto the desk: it comes from a little above,
+ * a hair large, and settles. `ease` is a pure deceleration curve with no
+ * overshoot — paper does not bounce, and the whole point is that it stops.
+ * The same curve is `--ease-settle` in theme-letter.css, which is where the
+ * CSS-driven half of the motion (dialogs, controls) reads it from.
+ *
+ * Kept small on purpose: this fires on every tab change, and a transition you
+ * notice on the fourth use is a transition that is too big.
+ */
+const PAGE = {
+  initial: { opacity: 0, y: -10, scale: 1.008 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: 6, scale: 0.996 },
+  transition: { duration: 0.34, ease: [0.22, 0.61, 0.28, 1] as const },
+}
+
+/** Reduced motion keeps the crossfade and drops every movement. pouf's base
+ *  layer neutralises CSS transitions globally, but framer animates in JS and
+ *  is not covered by that — this is the equivalent, done explicitly. */
+const PAGE_STILL = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.18 },
+}
+
 function App() {
   const { status: sessionStatus, user, setUser, backendError, signOut } = useSession()
+  const reduceMotion = useReducedMotion()
   const [mode, setMode] = useState<Mode>(() => (letterIdFromUrl() ? 'loading' : 'inbox'))
   // Where the "back" action returns to once a letter finishes playing —
   // the inbox (viewed from the mail list / a shared link) or the composer
@@ -40,9 +82,7 @@ function App() {
   // its recipient are created by the same call — so the draft waits here
   // while the composer previews it and picks who it's for.
   const [draft, setDraft] = useState<Blob | null>(null)
-  const [sendOpen, setSendOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [addFriendOpen, setAddFriendOpen] = useState(false)
 
   // Cross-client replay (IMPLEMENTATION_PLAN.md §4.1 step 1): a second
   // browser/tab opening this same URL fetches the gzipped recording over
@@ -140,11 +180,14 @@ function App() {
     setMode(tab)
   }, [])
 
-  const activeTab: Tab =
-    mode === 'compose' || mode === 'inbox' || mode === 'requests' ? mode : returnTo
+  const activeTab: Tab = isTab(mode) ? mode : returnTo
 
   if (sessionStatus === 'loading') {
-    return <div className="centered-status">Loading…</div>
+    return (
+      <div className="page-center">
+        <Skeleton variant="card" />
+      </div>
+    )
   }
 
   if (sessionStatus === 'signed-out') {
@@ -160,56 +203,86 @@ function App() {
   }
 
   return (
-    <Toaster>
-    <div id="app-shell">
-      <Header
-        active={activeTab}
-        onNavigate={handleNavigate}
-        onAddFriend={() => setAddFriendOpen(true)}
-        onSignOut={signOut}
-      />
-      <AddFriendDialog open={addFriendOpen} onOpenChange={setAddFriendOpen} />
-      <SendLetterDialog
-        open={sendOpen}
-        onOpenChange={setSendOpen}
-        letter={draft}
-        onSent={() => {
-          setDraft(null)
-          handleNavigate('inbox')
-        }}
-      />
-      {backendError && (
-        <div className="backend-banner">
-          Signed in, but the backend didn't answer ({backendError}). Check that it's
-          running on the port in BE/.env.
+    <>
+      <div className="app-shell">
+        <Header active={activeTab} onNavigate={handleNavigate} onSignOut={signOut} />
+        {backendError && (
+          <ErrorNote>
+            Signed in, but the backend didn't answer ({backendError}). Check that it's
+            running on the port in BE/.env.
+          </ErrorNote>
+        )}
+        <div id="whiteboard-container">
+          {/* `mode="wait"` and not the default: two screens cross-fading here
+              would mean two tldraw editors mounted at once, each with its own
+              store and its own rAF loop, over the same box. The outgoing
+              sheet leaves before the next one is laid down. */}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={mode} className="stage-anim" {...(reduceMotion ? PAGE_STILL : PAGE)}>
+          {mode === 'inbox' && <Inbox onView={handleViewMail} />}
+          {mode === 'requests' && <Requests />}
+          {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
+          {mode === 'profile' && user && <UserProfile user={user} onUpdated={setUser} />}
+          {mode === 'loading' && (
+            <div className="stage-center">
+              <Skeleton variant="card" />
+            </div>
+          )}
+          {mode === 'load-error' && (
+            <div className="stage-center">
+              <Stack gap={4}>
+                <ErrorNote>{loadError}</ErrorNote>
+                <Button tone="purple" onClick={handleBack}>
+                  Back to inbox
+                </Button>
+              </Stack>
+            </div>
+          )}
+          {mode === 'play' && recording && (
+            <>
+              <LetterPlayer
+                recording={recording}
+                onBack={handleBack}
+                // The player is reached two ways, and its back button should
+                // say which one — "compose" is a lie when you arrived from
+                // the inbox or a shared ?letter= link.
+                backLabel={returnTo === 'compose' ? 'Back to compose' : 'Back to inbox'}
+              />
+              {draft && (
+                // Rendered only while a draft exists — which is exactly
+                // when its trigger button should be on screen. The dialog
+                // owns its own open state; App only owns the draft.
+                <div className="hud hud--top">
+                  <Card variant="tight">
+                    <Row gap={3} justify="center">
+                      <SendLetterDialog
+                        letter={draft}
+                        onSent={() => {
+                          setDraft(null)
+                          handleNavigate('inbox')
+                        }}
+                      />
+                    </Row>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
+            </motion.div>
+          </AnimatePresence>
         </div>
-      )}
-      <div id="whiteboard-container">
-        {mode === 'inbox' && <Inbox onView={handleViewMail} />}
-        {mode === 'requests' && <Requests />}
-        {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
-        {mode === 'loading' && <div className="centered-status">Loading letter…</div>}
-        {mode === 'load-error' && (
-          <div className="centered-status">
-            <p>{loadError}</p>
-            <button onClick={handleBack}>Back to inbox</button>
-          </div>
-        )}
-        {mode === 'play' && recording && (
-          <>
-            <LetterPlayer recording={recording} onBack={handleBack} />
-            {draft && (
-              <div className="share-banner">
-                <button type="button" className="send-draft-button" onClick={() => setSendOpen(true)}>
-                  Send this letter…
-                </button>
-              </div>
-            )}
-          </>
-        )}
       </div>
-    </div>
-    </Toaster>
+      {/* Pouf's Toaster is a sibling, not a wrapper — it takes no children.
+          It also renders BARE items with no positioned wrapper of its own, by
+          design: its source notes that the shell owns the single
+          `.pouf-toasts` stack, so that two toast systems can't mount two fixed
+          stacks at identical coordinates and hide each other. Supplying that
+          stack is the app's job, and without it the toasts render static and
+          full-bleed at the bottom of the document. */}
+      <div className="pouf-toasts">
+        <Toaster />
+      </div>
+    </>
   )
 }
 

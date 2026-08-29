@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { updateUsername, UsernameTakenError, type AuthUser } from "../api";
+import { USERNAME_HINT, usernameProblem } from "../lib/username";
+import { Button } from "./pouf/Button";
+import { Field, Input } from "./pouf/Input";
+import { Stack } from "./pouf/layout";
+import { Blob } from "./pouf/media";
+import { Card } from "./pouf/surface";
+import { Heading, Text } from "./pouf/text";
 
 /**
  * Shown once, right after a first login: the backend seeds `username` with
@@ -22,13 +29,13 @@ export default function SetUsername({
 
   const trimmed = username.trim();
   // An email is what the account already has; letting it through would make
-  // the gate re-fire on the next login.
-  const invalid =
-    trimmed.length < 3 || trimmed.length > 24 || !/^[a-zA-Z0-9._-]+$/.test(trimmed);
+  // the gate re-fire on the next login. `usernameProblem` rejects one on the
+  // charset rule, since '@' isn't in the allowed set.
+  const problem = usernameProblem(username);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (invalid || saving) return;
+    if (problem || saving) return;
     setSaving(true);
     setError(null);
     try {
@@ -44,32 +51,56 @@ export default function SetUsername({
   }
 
   return (
-    <div className="login-page">
-      <h2 className="set-username-title">Pick a username</h2>
-      <p className="set-username-hint">
-        This is how other people will find and address you on U've Got Mail.
-      </p>
-      <form className="set-username-form" onSubmit={handleSubmit}>
-        <input
-          className="set-username-input"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="username"
-          autoFocus
-          autoComplete="off"
-          disabled={saving}
-        />
-        <button type="submit" disabled={invalid || saving}>
-          {saving ? "Saving…" : "Continue"}
-        </button>
-      </form>
-      <p className="set-username-hint">
-        3–24 characters; letters, numbers, dots, dashes and underscores.
-      </p>
-      {error && <p className="set-username-error">{error}</p>}
-      <button type="button" className="set-username-signout" onClick={onSignOut}>
-        Sign out
-      </button>
+    <div className="page-center">
+      <Card>
+        <Stack gap={4}>
+          <Blob icon="user" tone="mint" size="md" />
+          <Heading level={2}>Pick a username</Heading>
+          <Text muted size="sm">
+            This is how other people will find and address you on{" "}
+            <span className="wordmark">uve got mail!</span>
+          </Text>
+
+          <form onSubmit={handleSubmit}>
+            <Stack gap={4}>
+              {/* `Field` owns the label, hint and error copy — the three
+                  hand-rolled <p> elements this screen used to carry — and
+                  wires `aria-describedby` to whichever of them is showing. */}
+              <Field
+                label="Username"
+                hint={USERNAME_HINT}
+                // Only surface the shape rule once they've typed something;
+                // an error on an untouched empty field is just nagging.
+                error={error ?? (username.length > 0 ? (problem ?? undefined) : undefined)}
+              >
+                {(id, describedBy) => (
+                  <Input
+                    id={id}
+                    describedBy={describedBy}
+                    autoFocus
+                    value={username}
+                    onChange={setUsername}
+                    placeholder="username"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    invalid={Boolean(error) || (username.length > 0 && Boolean(problem))}
+                    disabled={saving}
+                  />
+                )}
+              </Field>
+
+              <Button type="submit" block tone="purple" disabled={Boolean(problem)} loading={saving}>
+                Continue
+              </Button>
+            </Stack>
+          </form>
+
+          <Button variant="quiet" size="sm" onClick={onSignOut}>
+            Sign out
+          </Button>
+        </Stack>
+      </Card>
     </div>
   );
 }

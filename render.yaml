@@ -1,0 +1,79 @@
+services:
+  # 1. THE BACKEND — native Node runtime instead of Docker + ts-node/nodemon.
+  # Runs the compiled `dist/server.js` (pnpm build -> tsc), which is lighter
+  # on the free tier's 512MB/0.1 CPU instance than a Docker image running dev
+  # tooling. Prisma's DB lives on Supabase, so no Render database is needed.
+  # Render's Node image already has corepack/pnpm enabled (package.json pins
+  # `packageManager: pnpm@10.12.1`) — don't run `corepack enable` here, it
+  # tries to re-symlink /usr/bin/pnpm and that dir is read-only at build time.
+  - type: web
+    name: uve-got-mail-backend
+    runtime: node
+    plan: free
+    rootDir: BE
+    buildCommand: pnpm install --frozen-lockfile && pnpm prisma generate && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - BE/**
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render's native runtime injects its own PORT automatically; server.ts
+      # already reads process.env.PORT, so it is left unset here on purpose.
+      - key: DATABASE_URL
+        sync: false # paste the Supabase connection string from BE/.env
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: GIPHY_API_KEY
+        sync: false
+      - key: DELIVERY_SECRET
+        sync: false # matches the value BE/.env uses to guard POST /delivery
+
+  # 2. THE FRONTEND — static site instead of a Docker service running `vite
+  # dev`. Static sites are free (not just free-plan-capped), serve from
+  # Render's CDN, and never spin down. The rewrite rules below reproduce the
+  # Vite dev-server proxy (vite.config.ts) so FE's relative fetches
+  # (`/auth/...`, `/mail/...`, etc. in src/api.ts) keep working unchanged.
+  - type: web
+    name: uve-got-mail-frontend
+    runtime: static
+    rootDir: FE
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    buildFilter:
+      paths:
+        - FE/**
+    envVars:
+      # Vite inlines these at build time, so they must be set before the
+      # build step runs (unlike the backend's runtime-only env vars).
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+    routes:
+      # NOTE: uve-got-mail-backend was already taken on Render, so the live
+      # service got the -pmo8 suffix (same as this frontend). If either
+      # service is ever deleted and recreated, re-check its dashboard URL —
+      # the suffix isn't guaranteed to stay the same.
+      - type: rewrite
+        source: /auth/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/auth/*
+      - type: rewrite
+        source: /giphy/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/giphy/*
+      - type: rewrite
+        source: /mail/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/mail/*
+      - type: rewrite
+        source: /user/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/user/*
+      - type: rewrite
+        source: /friends/*
+        destination: https://uve-got-mail-backend-pmo8.onrender.com/friends/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
