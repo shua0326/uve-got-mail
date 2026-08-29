@@ -1,0 +1,45 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider      = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+  previewFeatures = ["relationJoins"]
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  username String
+  friends  User[] @relation("Friends")
+  friendOf User[] @relation("Friends")
+  received mail[] @relation("recipient")
+  sent     mail[] @relation("sender")
+}
+
+model mail {
+  id          Int    @id @default(autoincrement())
+  content     String
+
+  senderId    Int
+  sender      User   @relation("sender", fields: [senderId], references: [id])
+
+  recipientId Int
+  recipient   User   @relation("recipient", fields: [recipientId], references: [id])
+
+  historyId   Int
+  history     history @relation("history", fields: [historyId], references: [id])
+}
+
+model history {
+  id    Int    @id @default(autoincrement())
+  mails mail[] @relation("history")
+}
+
