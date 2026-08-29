@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Tldraw, type Editor } from 'tldraw'
+import { Tldraw, type Editor, type TLUiOverrides } from 'tldraw'
 import { useRecorder } from '../replay/useRecorder'
 import type { Recording } from '../replay/format'
 import GifPicker from './GifPicker'
@@ -14,6 +14,30 @@ const CAMERA_OPTIONS = {
       initialZoom: 'fit-max' as const,
       baseZoom: 'fit-max' as const,
     },
+  },
+}
+
+// A letter is one page. The recorder only captures document-scope diffs
+// (§1.2), and which page is *current* is instance/session state, not
+// document state — so a second page's shapes are recorded but the replay
+// never switches to it, and the recipient sees a blank canvas (see
+// IMPLEMENTATION_PLAN.md §14). Rather than teach the recorder/player about
+// multiple pages, page creation is removed from the composer outright.
+// There are three distinct ways tldraw lets a user create a page, all
+// closed here: the page-menu dropdown (hidden via `components`), the
+// shape-context-menu "Move to new page" action, and the alt+arrow
+// change-page shortcut silently creating a new page when run off the end
+// of the (single) page list — the latter two removed via `overrides`.
+const COMPOSER_COMPONENTS = {
+  PageMenu: null,
+}
+
+const COMPOSER_OVERRIDES: TLUiOverrides = {
+  actions(_editor, actions) {
+    delete actions['move-to-new-page']
+    delete actions['change-page-next']
+    delete actions['change-page-prev']
+    return actions
   },
 }
 
@@ -35,7 +59,12 @@ export default function LetterCanvas({ onFinish }: { onFinish: (recording: Recor
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <Tldraw options={CAMERA_OPTIONS} onMount={handleMount} />
+      <Tldraw
+        options={CAMERA_OPTIONS}
+        onMount={handleMount}
+        components={COMPOSER_COMPONENTS}
+        overrides={COMPOSER_OVERRIDES}
+      />
       <div className="recorder-hud">
         <span className={`recorder-dot ${isRecording ? 'recorder-dot--live' : ''}`} />
         <span>{isRecording ? `Recording — ${frameCount} frames` : 'Draw to start recording'}</span>

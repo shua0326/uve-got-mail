@@ -1,19 +1,34 @@
 import { useCallback, useEffect, useState } from 'react'
 import './App.css'
+import { useSession } from './auth/useSession'
+import Header, { type Tab } from './components/Header'
+import Inbox from './components/Inbox'
 import LetterCanvas from './components/LetterCanvas'
 import LetterPlayer from './components/LetterPlayer'
-import { decode, encode } from './replay/codec'
+import Login from './components/Login'
+import { encode } from './replay/codec'
 import type { Recording } from './replay/format'
-import { fetchRecording, uploadRecording } from './api'
+import { loadLetter, uploadRecording, type MailListItem } from './api'
 
-type Mode = 'compose' | 'play' | 'loading' | 'load-error'
+type Mode = 'inbox' | 'compose' | 'play' | 'loading' | 'load-error'
 
 function letterIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get('letter')
 }
 
+function clearLetterParam() {
+  const url = new URL(window.location.href)
+  url.searchParams.delete('letter')
+  window.history.replaceState({}, '', url)
+}
+
 function App() {
-  const [mode, setMode] = useState<Mode>(() => (letterIdFromUrl() ? 'loading' : 'compose'))
+  const { status: sessionStatus, signOut } = useSession()
+  const [mode, setMode] = useState<Mode>(() => (letterIdFromUrl() ? 'loading' : 'inbox'))
+  // Where the "back" action returns to once a letter finishes playing —
+  // the inbox (viewed from the mail list / a shared link) or the composer
+  // (just-finished draft preview).
+  const [returnTo, setReturnTo] = useState<Tab>('inbox')
   const [recording, setRecording] = useState<Recording | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -36,8 +51,7 @@ function App() {
       let lastErr: unknown
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
-          const buf = await fetchRecording(id!, controller.signal)
-          return await decode(buf)
+          return await loadLetter(id!, controller.signal)
         } catch (err) {
           if (err instanceof DOMException && err.name === 'AbortError') throw err
           lastErr = err
@@ -50,12 +64,14 @@ function App() {
     load()
       .then((rec) => {
         setRecording(rec)
+        setReturnTo('inbox')
         setMode('play')
       })
       .catch((err) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
         console.error('Failed to load recording', err)
         setLoadError(`Couldn't load that letter (${String(err)}).`)
+        setReturnTo('inbox')
         setMode('load-error')
       })
 
@@ -66,6 +82,7 @@ function App() {
 
   const handleFinish = useCallback(async (rec: Recording) => {
     setRecording(rec)
+    setReturnTo('compose')
     setMode('play')
     setShareUrl(null)
 
@@ -89,36 +106,72 @@ function App() {
     }
   }, [])
 
+  const handleViewMail = useCallback((mail: MailListItem) => {
+    setShareUrl(null)
+    setReturnTo('inbox')
+    setMode('loading')
+    loadLetter(mail.content)
+      .then((rec) => {
+        setRecording(rec)
+        setMode('play')
+      })
+      .catch((err) => {
+        console.error('Failed to load recording', err)
+        setLoadError(`Couldn't load that letter (${String(err)}).`)
+        setMode('load-error')
+      })
+  }, [])
+
   const handleBack = useCallback(() => {
-    const url = new URL(window.location.href)
-    url.searchParams.delete('letter')
-    window.history.replaceState({}, '', url)
+    clearLetterParam()
     setRecording(null)
     setShareUrl(null)
     setLoadError(null)
-    setMode('compose')
+    setMode(returnTo)
+  }, [returnTo])
+
+  const handleNavigate = useCallback((tab: Tab) => {
+    clearLetterParam()
+    setRecording(null)
+    setShareUrl(null)
+    setLoadError(null)
+    setMode(tab)
   }, [])
 
+  const activeTab: Tab = mode === 'compose' ? 'compose' : mode === 'inbox' ? 'inbox' : returnTo
+
+  if (sessionStatus === 'loading') {
+    return <div className="centered-status">Loading…</div>
+  }
+
+  if (sessionStatus === 'signed-out') {
+    return <Login />
+  }
+
   return (
-    <div id="whiteboard-container">
-      {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
-      {mode === 'loading' && <div className="centered-status">Loading letter…</div>}
-      {mode === 'load-error' && (
-        <div className="centered-status">
-          <p>{loadError}</p>
-          <button onClick={handleBack}>Compose a new letter</button>
-        </div>
-      )}
-      {mode === 'play' && recording && (
-        <>
-          <LetterPlayer recording={recording} onBack={handleBack} />
-          {shareUrl && (
-            <div className="share-banner">
-              Open on another client: <code>{shareUrl}</code>
-            </div>
-          )}
-        </>
-      )}
+    <div id="app-shell">
+      <Header active={activeTab} onNavigate={handleNavigate} onSignOut={signOut} />
+      <div id="whiteboard-container">
+        {mode === 'inbox' && <Inbox onView={handleViewMail} />}
+        {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
+        {mode === 'loading' && <div className="centered-status">Loading letter…</div>}
+        {mode === 'load-error' && (
+          <div className="centered-status">
+            <p>{loadError}</p>
+            <button onClick={handleBack}>Back to inbox</button>
+          </div>
+        )}
+        {mode === 'play' && recording && (
+          <>
+            <LetterPlayer recording={recording} onBack={handleBack} />
+            {shareUrl && (
+              <div className="share-banner">
+                Open on another client: <code>{shareUrl}</code>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
