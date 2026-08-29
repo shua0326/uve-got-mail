@@ -6,9 +6,10 @@ import Inbox from './components/Inbox'
 import LetterCanvas from './components/LetterCanvas'
 import LetterPlayer from './components/LetterPlayer'
 import Login from './components/Login'
+import SetUsername from './components/SetUsername'
 import { encode } from './replay/codec'
 import type { Recording } from './replay/format'
-import { loadLetter, uploadRecording, type MailListItem } from './api'
+import { loadLetter, needsUsername, uploadRecording, type MailListItem } from './api'
 
 type Mode = 'inbox' | 'compose' | 'play' | 'loading' | 'load-error'
 
@@ -23,7 +24,7 @@ function clearLetterParam() {
 }
 
 function App() {
-  const { status: sessionStatus, signOut } = useSession()
+  const { status: sessionStatus, user, setUser, backendError, signOut } = useSession()
   const [mode, setMode] = useState<Mode>(() => (letterIdFromUrl() ? 'loading' : 'inbox'))
   // Where the "back" action returns to once a letter finishes playing —
   // the inbox (viewed from the mail list / a shared link) or the composer
@@ -148,9 +149,23 @@ function App() {
     return <Login />
   }
 
+  // First login seeds `username` with the account's email
+  // (BE/src/controllers/auth/authController.ts) — hold the app behind the
+  // username picker until they've chosen a real one. `user` is null only
+  // while /auth/callback is still in flight.
+  if (user && needsUsername(user)) {
+    return <SetUsername user={user} onDone={setUser} onSignOut={signOut} />
+  }
+
   return (
     <div id="app-shell">
       <Header active={activeTab} onNavigate={handleNavigate} onSignOut={signOut} />
+      {backendError && (
+        <div className="backend-banner">
+          Signed in, but the backend didn't answer ({backendError}). Check that it's
+          running on the port in BE/.env.
+        </div>
+      )}
       <div id="whiteboard-container">
         {mode === 'inbox' && <Inbox onView={handleViewMail} />}
         {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}

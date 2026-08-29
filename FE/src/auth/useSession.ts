@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
+import type { AuthUser } from "../api";
 
 export type SessionStatus = "loading" | "signed-out" | "signed-in";
 
@@ -11,10 +12,16 @@ export type SessionStatus = "loading" | "signed-out" | "signed-in";
  * (BE/src/controllers/auth/authController.ts). A 401 here means Supabase
  * has a locally cached session the backend no longer accepts, so it's
  * cleared rather than left stuck.
+ *
+ * The callback's `{ user: { id, email, username } }` body is kept as `user`
+ * — App.tsx reads it to decide whether the account still needs a username
+ * picked (see `needsUsername` in api.ts).
  */
 export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [status, setStatus] = useState<SessionStatus>("loading");
+  const [backendError, setBackendError] = useState<string | null>(null);
   const verifiedFor = useRef<string | null>(null);
 
   useEffect(() => {
@@ -31,11 +38,23 @@ export function useSession() {
           await supabase.auth.signOut();
           return;
         }
+        if (!res.ok) {
+          // Reachable but unhappy (proxy misconfigured, backend throwing).
+          // Deliberately NOT marked verified, so the next auth event retries
+          // instead of leaving `user` null for the rest of the session.
+          throw new Error(`/auth/callback responded ${res.statusText}`);
+        }
+        const body = await res.json();
+        if (cancelled) return;
+        if (body?.user) setUser(body.user as AuthUser);
+        setBackendError(null);
         verifiedFor.current = next.user.id;
       } catch (err) {
         // Backend unreachable — keep the FE session as-is rather than
-        // signing the user out over a network blip.
+        // signing the user out over a network blip. `user` stays null, which
+        // App.tsx reads as "don't know yet" rather than "no username needed".
         console.error("Failed to verify session with backend", err);
+        if (!cancelled) setBackendError(String(err));
       }
     }
 
@@ -51,7 +70,11 @@ export function useSession() {
       setSession(next);
       setStatus(next ? "signed-in" : "signed-out");
       if (next) void verifyWithBackend(next);
-      else verifiedFor.current = null;
+      else {
+        verifiedFor.current = null;
+        setUser(null);
+        setBackendError(null);
+      }
     });
 
     return () => {
@@ -62,7 +85,13 @@ export function useSession() {
 
   return {
     session,
+    /** The backend's `MailUser` row, once `/auth/callback` has answered. */
+    user,
+    /** Called after the set-username page saves, so the gate stops firing. */
+    setUser: useCallback((next: AuthUser) => setUser(next), []),
     status,
+    /** Set when /auth/callback couldn't be reached or errored. */
+    backendError,
     signOut: () => supabase.auth.signOut(),
   };
 }
