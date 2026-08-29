@@ -28,7 +28,7 @@ model MailUser {
 
 model Mail {
   id          Int      @id @default(autoincrement())
-  content     String
+  sentAt      DateTime @default(now())
   read        Boolean  @default(false)
   received    Boolean  @default(false)
 
@@ -38,12 +38,23 @@ model Mail {
   recipientId String
   recipient   MailUser     @relation("recipient", fields: [recipientId], references: [id])
 
-  historyId   Int
+  historyId   String
   history     History  @relation("history", fields: [historyId], references: [id])
+
+  recordingId String    @unique
+  recording   Recording @relation(fields: [recordingId], references: [id])
+}
+
+model Recording {
+  id        String   @id @default(uuid())
+  data      Bytes
+  byteSize  Int
+  createdAt DateTime @default(now())
+  mail      Mail?
 }
 
 model History {
-  id    Int    @id @default(autoincrement())
+  id    String    @id
   mails Mail[] @relation("history")
 }
 
