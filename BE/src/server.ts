@@ -10,7 +10,8 @@ import mailUserRoutes from "./routes/mailUserRoutes";
 import friendRequestRoutes from "./routes/friendRequestRoutes";
 import deliveryRoutes from "./routes/deliveryRoutes";
 import { requireAuth } from "./middlewares/authMiddleware";
-import { deliverDueMail } from "./services/deliveryService";
+import { requireDeliverySecret } from "./controllers/delivery/deliveryController";
+import { deliverAllMail, deliverDueMail } from "./services/deliveryService";
 import cron from "node-cron";
 import { openapiSpec } from "./docs/openapiSpec";
 
@@ -45,6 +46,24 @@ app.use("/user", mailUserRoutes);
 app.use("/friends", requireAuth, friendRequestRoutes);
 // Guarded by DELIVERY_SECRET rather than a user token — it runs as the system.
 app.use("/delivery", deliveryRoutes);
+
+// Immediate delivery for everyone, whatever their scheduledMail says: the
+// pending letters land now and each user gets a fresh scheduledMail for the
+// next day, so the normal schedule resumes from here. POST /delivery/run only
+// covers users who are already due; this is the one that forces the issue.
+// Same DELIVERY_SECRET guard — it delivers on behalf of every account.
+app.post("/sendNow", async (req: Request, res: Response) => {
+  try {
+    const report = await deliverAllMail();
+    console.log(
+      `[sendNow] ${report.users} user(s): delivered ${report.delivered}, archived ${report.archived}`
+    );
+    res.status(200).json(report);
+  } catch (err) {
+    console.error("[sendNow] failed:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 
 app.get("/login-test", (req: Request, res: Response) => {

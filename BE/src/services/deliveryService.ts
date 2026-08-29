@@ -72,9 +72,30 @@ export async function deliverDueMail(now: Date = new Date()): Promise<DeliveryRe
     select: { id: true },
   });
 
-  const report: DeliveryReport = { users: due.length, delivered: 0, archived: 0 };
+  return deliverTo(due, now);
+}
 
-  for (const user of due) {
+/**
+ * Delivers to *every* user regardless of `scheduledMail` — the immediate
+ * "send now" pass. Same effect as a scheduled delivery arriving early: the
+ * current window is archived, pending letters become visible, and everyone's
+ * `scheduledMail` is rolled forward to a fresh random time the next day, so
+ * the normal schedule carries on from here.
+ *
+ * Users with a null `scheduledMail` are included: unlike the due pass there is
+ * no time to compare against, and delivering gives them one.
+ */
+export async function deliverAllMail(now: Date = new Date()): Promise<DeliveryReport> {
+  const everyone = await prisma.mailUser.findMany({ select: { id: true } });
+
+  return deliverTo(everyone, now);
+}
+
+/** The delivery itself, shared by the due and send-now passes. */
+async function deliverTo(users: { id: string }[], now: Date): Promise<DeliveryReport> {
+  const report: DeliveryReport = { users: users.length, delivered: 0, archived: 0 };
+
+  for (const user of users) {
     // Per user rather than one bulk update: each delivery has to archive the
     // old window and open the new one atomically, or a reader between the two
     // statements would see either nothing or two windows at once.
