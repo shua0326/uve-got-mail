@@ -1,10 +1,13 @@
 <!doctype html>
-<html lang="en">
+<!-- Light-only by decision (DESIGN_MIGRATION_PLAN.md §0): pouf ships dark
+     mode as opt-in via this attribute, so pinning "light" keeps the app on one
+     palette regardless of the OS setting. -->
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>fe</title>
+    <title>U've Got Mail</title>
   </head>
   <body>
     <div id="root"></div>

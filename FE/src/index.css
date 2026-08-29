@@ -1,263 +1,219 @@
+/* ============================================================================
+ * App layout — POSITIONING ONLY.
+ *
+ * 1st-Pouf owns every pixel of *appearance*: colour, type, radii, cushions,
+ * spacing inside a component. Per the pouf conventions (docs §7) its
+ * components take no `className` or `style`, so appearance can't drift
+ * off-system one utility at a time — and nothing in this file tries to.
+ *
+ * What is left here is the handful of things pouf has no primitive for,
+ * every one of them a *placement* problem:
+ *
+ *   - the tldraw stage, which must fill a fixed box the canvas can size to;
+ *   - HUDs and the GIF panel, which float ABOVE that canvas in its own
+ *     stacking context (a pouf `Card` renders the panel; this file only says
+ *     where the wrapper sits);
+ *   - the full-viewport centring the signed-out screens use.
+ *
+ * Values come from pouf's own custom properties (`--s*`, `--surface`,
+ * `--r-card`, `--pouf-card`) rather than literals, so the palette stays in one
+ * place. This is NOT a Tailwind entry — `pouf.css` is the only one, and adding
+ * a second `@import 'tailwindcss'` here would break it (pouf docs, Install).
+ * ========================================================================= */
 
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/jetbrains-mono";
-
-@custom-variant dark (&:is(.dark *));
-
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: oklch(0.922 0 0);
-  --code-bg: #f4f3ec;
-  --accent: oklch(0.97 0 0);
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-
-  --background: oklch(1 0 0);
-
-  --foreground: oklch(0.145 0 0);
-
-  --card: oklch(1 0 0);
-
-  --card-foreground: oklch(0.145 0 0);
-
-  --popover: oklch(1 0 0);
-
-  --popover-foreground: oklch(0.145 0 0);
-
-  --primary: oklch(0.205 0 0);
-
-  --primary-foreground: oklch(0.985 0 0);
-
-  --secondary: oklch(0.97 0 0);
-
-  --secondary-foreground: oklch(0.205 0 0);
-
-  --muted: oklch(0.97 0 0);
-
-  --muted-foreground: oklch(0.556 0 0);
-
-  --accent-foreground: oklch(0.205 0 0);
-
-  --destructive: oklch(0.577 0.245 27.325);
-
-  --input: oklch(0.922 0 0);
-
-  --ring: oklch(0.708 0 0);
-
-  --chart-1: oklch(0.87 0 0);
-
-  --chart-2: oklch(0.556 0 0);
-
-  --chart-3: oklch(0.439 0 0);
-
-  --chart-4: oklch(0.371 0 0);
-
-  --chart-5: oklch(0.269 0 0);
-
-  --radius: 0.625rem;
-
-  --sidebar: oklch(0.985 0 0);
-
-  --sidebar-foreground: oklch(0.145 0 0);
-
-  --sidebar-primary: oklch(0.205 0 0);
-
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-
-  --sidebar-accent: oklch(0.97 0 0);
-
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-
-  --sidebar-border: oklch(0.922 0 0);
-
-  --sidebar-ring: oklch(0.708 0 0)
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+/* --- Page chrome --------------------------------------------------------- */
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
+}
+
+.app-shell {
   display: flex;
   flex-direction: column;
+  gap: var(--s4);
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: var(--s5);
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+@media (max-width: 900px) {
+  .app-shell {
+    padding: var(--s3);
+    gap: var(--s3);
   }
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+
+/* Full-viewport centring for the screens that render before the app shell
+   exists — Login, SetUsername — and for the session-loading state. */
+.page-center {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4);
+  padding: var(--s5);
+  box-sizing: border-box;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/* Caps the cards on those screens so a 32px-radius cushion doesn't stretch
+   the full width of a desktop monitor. */
+.page-center > * {
+  width: min(420px, 100%);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* --- The tldraw stage ---------------------------------------------------- */
+
+/* A pouf card by construction — same surface, radius and cushion as `Card` —
+   but written out here because it also has to be a sized, clipping,
+   positioned container, and `Card` accepts no layout props. `overflow:
+   hidden` is what makes the canvas respect the 32px corners. */
+#whiteboard-container {
+  position: relative;
+  width: 100%;
+  height: min(78svh, 900px);
+  min-height: 420px;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  box-shadow: var(--pouf-card);
+  overflow: hidden;
 }
 
-@theme inline {
-  --font-heading: var(--font-mono);
-  --font-mono: 'JetBrains Mono Variable', monospace;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+/* Fills #whiteboard-container and establishes the stacking context the HUDs
+   position against. Used by LetterCanvas and LetterPlayer. */
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* Centres a pouf `Empty` / `Skeleton` / `ErrorNote` inside the stage box. */
+.stage-center {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4);
+  padding: var(--s5);
+  box-sizing: border-box;
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;}
-  body {
-    @apply bg-background text-foreground;}
-  html {
-    @apply font-mono;}}
+/* --- Floating canvas overlays -------------------------------------------- */
+
+/* Wrappers only: each one holds a pouf `Card variant="tight"` that supplies
+   the surface, radius and cushion. Kept clear of tldraw's own top-left page
+   menu, top-right style panel and bottom-centre toolbar so the two UIs never
+   fight for a corner. */
+.hud {
+  position: absolute;
+  z-index: 99999;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(760px, calc(100% - var(--s8)));
+}
+
+.hud--top {
+  top: var(--s3);
+}
+
+/* Above tldraw's toolbar. Safe at this offset in readonly playback, where the
+   style panel and page menu don't render. */
+.hud--bottom {
+  bottom: 72px;
+  width: min(640px, calc(100% - var(--s8)));
+}
+
+/* The player's seek slider is the only element in its HUD that should absorb
+   leftover width. */
+.hud-grow {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Left-edge GIF panel. Sized and placed here; `Card variant="flush"` inside
+   supplies the cushion, and `overflow: hidden` clips the scroll region to the
+   card's corners. */
+.gif-panel {
+  position: absolute;
+  z-index: 99998;
+  top: var(--s3);
+  bottom: 72px;
+  left: var(--s3);
+  width: 300px;
+  max-width: calc(100% - var(--s6));
+  display: flex;
+  overflow: hidden;
+  border-radius: var(--r-card);
+}
+
+.gif-panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s4);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* A fluid image tile. Pouf has no component for one — `Figure` takes fixed
+   width/height, which a responsive grid cell can't supply — so this stays a
+   raw button, reset off pouf's `appearance: auto` base rule and given the
+   system's own control radius so it still reads as part of the set. */
+.gif-tile {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  aspect-ratio: 1;
+  border-radius: var(--r-control);
+  overflow: hidden;
+  display: block;
+}
+
+.gif-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* --- Screens inside the stage -------------------------------------------- */
+
+/* The inbox gallery card. A pouf `Card` hugs its content, and a letter from
+   someone with a short username would otherwise render a card narrower than
+   its own "Letter 1 of 3" footer — so the width is pinned on the wrapper. */
+.letter-card {
+  width: min(380px, 70vw);
+}
+
+/* A scrolling list inside the fixed stage box (Requests). `ScrollArea` is the
+   pouf primitive for this, but it takes a fixed `maxHeight` string and this
+   region is sized by its parent, so the scroll lives on the wrapper. */
+.stage-scroll {
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--s5);
+  box-sizing: border-box;
+}
+
+/* Caps list measure on a wide monitor without centring the rows' own text. */
+.stage-scroll > * {
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+/* The GIF results region. `ScrollArea` is the pouf primitive, but it takes a
+   fixed `maxHeight` string and this region's height is whatever the panel has
+   left over — so the scroll lives here. `min-height: 0` is what lets a flex
+   child actually shrink enough to scroll. */
+.gif-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
