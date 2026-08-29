@@ -31,10 +31,17 @@ export default function Login() {
     <div className="page-center">
       <Card>
         <Stack gap={4}>
-          <Blob icon="mail" tone="purple" size="lg" />
-          <Heading level={1}>uve got mail!</Heading>
+          {/* Wax rose rather than the default violet: at 80px and fully
+              round (theme-letter.css §7) the Blob reads as a seal, and a
+              seal on a letter is wax. Decorative only — it carries no label
+              and is aria-hidden, so the tone is free of any semantic duty. */}
+          <Blob icon="mail" tone="pink" size="lg" />
+          <Heading level={1}>
+            <span className="wordmark">uve got mail!</span>
+          </Heading>
           <Text muted>
-            Hand-drawn letters that arrive once a day, at a time you don't get to pick.
+            Letters you draw by hand, delivered once a day at a time you don't get to
+            pick. Take your time over them — nobody is waiting on a read receipt.
           </Text>
           <Button block tone="purple" size="lg" onClick={continueWithGoogle}>
             Continue with Google

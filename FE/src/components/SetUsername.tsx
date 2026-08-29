@@ -57,7 +57,8 @@ export default function SetUsername({
           <Blob icon="user" tone="mint" size="md" />
           <Heading level={2}>Pick a username</Heading>
           <Text muted size="sm">
-            This is how other people will find and address you on uve got mail!
+            This is how other people will find and address you on{" "}
+            <span className="wordmark">uve got mail!</span>
           </Text>
 
           <form onSubmit={handleSubmit}>

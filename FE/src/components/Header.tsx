@@ -41,7 +41,11 @@ export default function Header({
       brand={
         <>
           <Icon name="mail" size="md" />
-          uve got mail!
+          {/* The product signing its own name — the one place a real hand is
+              unambiguously right, so it is the one place that gets one.
+              Styled in index.css (`.wordmark`); the Navbar's brand slot takes
+              a ReactNode, so this needs no change inside pouf. */}
+          <span className="wordmark">uve got mail!</span>
         </>
       }
       links={links}

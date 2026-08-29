@@ -6,7 +6,7 @@ import { Icon } from "./pouf/Icon";
 import { Row, Stack } from "./pouf/layout";
 import { Badge } from "./pouf/media";
 import { Card } from "./pouf/surface";
-import { Heading, Text } from "./pouf/text";
+import { Eyebrow, Heading, Text } from "./pouf/text";
 import { toast } from "./pouf/toaster";
 
 /**
@@ -129,16 +129,37 @@ export default function Inbox({ onView }: { onView: (mail: MailListItem) => void
         <div className="letter-card">
           <Card motion="lift">
             <Stack gap={4}>
-              <Row gap={3} justify="between" align="center">
-                <Heading level={3}>
-                  {current.sender?.username || current.sender?.email || current.senderId}
-                </Heading>
-                {!current.read && <Badge tone="purple">New</Badge>}
+              {/* The letterhead: who it is from, then when it was written —
+                  the order you read them off a real envelope, and the reason
+                  the sender is a Heading and the date is not. */}
+              <Row gap={4} justify="between" align="top" wrap={false}>
+                <Stack gap={1}>
+                  <Eyebrow>From</Eyebrow>
+                  <Heading level={3}>
+                    {current.sender?.username || current.sender?.email || current.senderId}
+                  </Heading>
+                  {/* `<time>` restored (design_handoff.txt §8 records it was
+                      lost in the pouf migration): pouf has no time primitive
+                      and `Text` renders a span, so the machine-readable value
+                      is carried by a plain wrapper around it. */}
+                  <time className="dateline" dateTime={current.sentAt}>
+                    {formatSentAt(current.sentAt)}
+                  </time>
+                </Stack>
+
+                {/* The stamp, franked once the letter has been read. It is a
+                    SECOND rendering of `read`, never the only one — the Badge
+                    below is what a screen reader and anyone who doesn't read
+                    the metaphor gets. */}
+                <span
+                  className={current.read ? "stamp stamp--franked" : "stamp"}
+                  aria-hidden="true"
+                >
+                  <Icon name="mail" size="md" />
+                </span>
               </Row>
 
-              <Text size="sm" muted>
-                {formatSentAt(current.sentAt)}
-              </Text>
+              {!current.read && <Badge tone="purple">New</Badge>}
 
               <Button size="lg" block tone="purple" onClick={() => open(current)}>
                 {current.read ? "Read again" : "Open letter"}
@@ -164,15 +185,22 @@ export default function Inbox({ onView }: { onView: (mail: MailListItem) => void
   );
 }
 
-/** `sentAt` arrives as an ISO string over JSON, not a Date. */
+/** `sentAt` arrives as an ISO string over JSON, not a Date.
+ *
+ * Written out long — "Saturday, 30 August · 4:12 pm" rather than "Sat 30 Aug,
+ * 4:12 pm". This is a dateline, the line a letter opens with, and abbreviating
+ * it is the one thing a dateline never does. */
 function formatSentAt(sentAt: string): string {
   const date = new Date(sentAt);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString(undefined, {
-    weekday: "short",
+  const day = date.toLocaleDateString(undefined, {
+    weekday: "long",
     day: "numeric",
-    month: "short",
+    month: "long",
+  });
+  const time = date.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
   });
+  return `${day} · ${time}`;
 }

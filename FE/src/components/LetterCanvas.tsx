@@ -46,12 +46,34 @@ const COMPOSER_OVERRIDES: TLUiOverrides = {
   },
 }
 
+/** The line a letter opens with, before anything is said. Computed once per
+ *  mount rather than per render — it is the date you started writing, and a
+ *  value that ticked over at midnight mid-letter would be a small lie. */
+function today(): string {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  })
+}
+
 export default function LetterCanvas({ onFinish }: { onFinish: (recording: Recording) => void }) {
+  const [dateline] = useState(today)
   const [editor, setEditor] = useState<Editor | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const { isRecording, frameCount, finish } = useRecorder(editor)
 
-  const handleMount = useCallback((e: Editor) => setEditor(e), [])
+  const handleMount = useCallback((e: Editor) => {
+    setEditor(e)
+    // You arrive at this screen to write a letter, so the pen is already in
+    // your hand. tldraw opens on `select`, which means the first thing the
+    // composer asks you to do is pick up a tool — a step that exists for a
+    // general-purpose canvas and not for this one. Instance state, not
+    // document state, so the recorder never sees it (replay/useRecorder.ts
+    // captures document-scope diffs only) and the recipient's playback is
+    // unchanged.
+    e.setCurrentTool('draw')
+  }, [])
 
   const handleFinish = useCallback(() => {
     const recording = finish()
@@ -81,6 +103,11 @@ export default function LetterCanvas({ onFinish }: { onFinish: (recording: Recor
       <div className="hud hud--top">
         <Card variant="tight">
           <Row gap={3} align="center" justify="center">
+            {/* You are writing something today. Saying so — in the same small
+                caps a letter's dateline is set in — is the cheapest way to
+                make the composer feel like a sheet of paper rather than a
+                drawing app that happens to send things. */}
+            <span className="dateline">{dateline}</span>
             <Status
               label={isRecording ? `Recording — ${frameCount} frames` : 'Draw to start recording'}
               tone={isRecording ? 'down' : 'idle'}

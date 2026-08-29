@@ -1,0 +1,500 @@
+/* ============================================================================
+ * THE WRITING DESK — a warm, cozy retheme of 1st-Pouf.
+ *
+ * WHY THIS IS A SEPARATE FILE, and not edits inside `pouf/pouf.css`:
+ *
+ *   design_handoff.txt §2 records that a future `shadcn add` of any pouf
+ *   registry item SILENTLY reverts local edits to it, and asks that such
+ *   edits carry a `LOCAL EDIT` banner so a grep can find them. `pouf.css` is
+ *   a registry file. Re-theming it in place would put the app's entire visual
+ *   identity one re-install away from vanishing.
+ *
+ *   It does not need to be in there. Every 1st-Pouf utility compiles to
+ *   `var(--token)` — verified against the built stylesheet, e.g.
+ *   `.bg-surface { background-color: var(--color-surface) }`,
+ *   `.rounded-card { border-radius: var(--radius-card) }`,
+ *   `.cushion-card { box-shadow: var(--pouf-card) }` — never to a literal.
+ *   `@theme` (not `@theme inline`) is what guarantees that. So redefining the
+ *   tokens in a later `:root` retints the whole system.
+ *
+ *   The rules further down that are NOT token swaps beat pouf's own because
+ *   this file is UNLAYERED and pouf's are in `@layer theme|base|components|
+ *   utilities`. Unlayered CSS outranks layered CSS regardless of specificity
+ *   — the same mechanism `tldraw-theme.css` documents at its head.
+ *
+ * WHAT THE THEME IS
+ *
+ *   1st-Pouf's claymorphism is KEPT, not replaced: the three-part cushion,
+ *   the generous radii, the pastel accents, Nunito. What changes is that all
+ *   of it moves somewhere warm. The reference palette is cool — lavender page,
+ *   plum shadows — and this product is about writing somebody a letter by
+ *   hand. So:
+ *
+ *     lavender page   ->  warm cream, with paper fibre in it
+ *     white surface   ->  ivory; nothing on screen is pure white
+ *     plum shadow     ->  warm brown-ink shadow
+ *     lavender floor  ->  a tan cushion underside
+ *     cool pastels    ->  peach, butter, sage, rose, cornflower, lilac
+ *
+ *   On top of that sit the few things that are about LETTERS specifically and
+ *   not about the palette: paper grain on every surface, a stamp and postmark
+ *   on an inbox letter, feint rules on the letter card, a dateline over the
+ *   composer, and the wax seal on the send step (all in index.css).
+ *
+ *   Pouf's accessibility contracts are deliberately preserved, because they
+ *   are the reason the system works and none of them are about hue:
+ *
+ *     - ink on pastel, never white. Measured ratios are noted in §2.
+ *     - depth, not colour, signals state (design_handoff.txt §4's note about
+ *       `Segmented`). Nothing here replaces a shadow with a background.
+ * ========================================================================= */
+
+/* ============================================================================
+ * 1. TYPEFACES
+ *
+ * Nunito does all the work, exactly as pouf intends — it is a rounded,
+ * friendly, high-x-height sans and it is already the right voice for this.
+ *
+ * Caveat is the single exception, and it is rationed to two places: the
+ * wordmark, and the title of an empty state. Both are moments where the app
+ * is speaking as a person rather than as software ("uve got mail!", "Nothing
+ * delivered yet."). Everywhere else a script face costs legibility and buys
+ * nothing — which is why sender names, datelines, buttons and field labels
+ * are all deliberately NOT in it.
+ * ========================================================================= */
+:root {
+  --font-ui: 'Nunito Variable', 'Nunito', 'SF Pro Rounded', 'Helvetica Neue',
+    system-ui, sans-serif;
+  --font-hand: 'Caveat Variable', 'Caveat', 'Bradley Hand', 'Segoe Script', cursive;
+
+  /* pouf's own handles, restated so the two names can never drift apart. */
+  --font-pouf: var(--font-ui);
+  --font: var(--font-pouf);
+}
+
+/* ============================================================================
+ * 2. PIGMENTS
+ *
+ * The same six accent SLOTS as pouf and the same hue families, so every
+ * semantic alias downstream (`--up: mint`, `--down: pink`, `--warn: yellow`,
+ * `--info: blue`, `--idle: purple`) keeps meaning what it meant. They are
+ * rotated warm and kept pastel — nothing on screen is brighter or colder than
+ * the page it sits on.
+ *
+ * Contrast, ink #453a30 on each accent — computed with the WCAG relative
+ * luminance formula, not eyeballed:
+ *   purple 6.41:1   blue 7.12:1   pink 7.31:1
+ *   orange 7.42:1   mint 7.99:1   yellow 8.76:1
+ * Ink on paper is 10.86:1 and on the page 9.31:1. All clear AA at every size,
+ * and AAA for body text. `--on-accent-muted` measures 5.25:1 on the darkest
+ * accent, comfortably past the 5.03 pouf's own comment records for the
+ * palette this replaces.
+ * ========================================================================= */
+:root {
+  /* The page: warm cream. Unbleached, the colour of a desk blotter. */
+  --color-bg: #f2ebdd;
+  /* The surface: ivory. Never #fff — a pure white card on a warm page reads
+     as a lit screen sitting inside a photograph. */
+  --color-surface: #fffdf7;
+  /* The ink: soft brown-black rather than a neutral one, so that even at full
+     strength the darkest thing on screen is still warm. 10.86:1 on paper. */
+  --color-ink: #453a30;
+  /* Pencil. 5.52:1 on paper and 4.73:1 on the page — this is used at 13px for
+     hints and datelines, so it has to clear AA on BOTH, not just on cards. */
+  --color-muted: #786452;
+
+  --color-pink: #ffc3c9;   /* dusty rose  — semantic --down */
+  --color-purple: #cdbdf5; /* lilac       — semantic --idle, and the primary */
+  --color-blue: #b4d3f2;   /* cornflower  — semantic --info */
+  --color-mint: #b8e6c8;   /* sage        — semantic --up */
+  --color-yellow: #ffe2a3; /* butter      — semantic --warn */
+  --color-orange: #ffc9a0; /* peach */
+
+  /* Sealing-wax red. Not an accent slot: it is deliberately outside the
+     pastel set, because it is only ever used where a strong, saturated red is
+     the point — the postmark franking a read letter, and the ring and ink of
+     the declining action. `--wax-deep` measures 7.59:1 on paper, so unlike
+     the pastels it is safe as text. */
+  --wax: #c2554a;
+  --wax-deep: #8e3630;
+  /* Ruled-line blue, the feint printed on writing paper. Weak on purpose: at
+     full strength the letter card reads as a school exercise book. A feint is
+     meant to be findable, not followed. */
+  --rule: rgba(150, 170, 190, 0.34);
+
+  /* pouf reads these aliases, not the @theme names. Re-pointed so the values
+     above actually reach the components. */
+  --bg: var(--color-bg);
+  --surface: var(--color-surface);
+  --ink: var(--color-ink);
+  --muted: var(--color-muted);
+  --pink: var(--color-pink);
+  --purple: var(--color-purple);
+  --blue: var(--color-blue);
+  --mint: var(--color-mint);
+  --yellow: var(--color-yellow);
+  --orange: var(--color-orange);
+
+  --on-accent: var(--ink);
+  --on-accent-muted: #554639;
+  --inverse-surface: var(--ink);
+  --inverse-ink: var(--surface);
+  --code-surface: var(--ink);
+  --code-ink: var(--surface);
+
+  /* -- The two colours every shadow in §4 is built from ------------------
+   * Kept as bare channel triplets so alpha can vary per use. This is the
+   * whole mechanism by which the clay gets warm: pouf's recipe is unchanged
+   * in GEOMETRY, and only these two values move.
+   *
+   *   clay-floor  the underside of a cushion, seen through its own edge.
+   *               Tan, because a cream object's shadow on itself is tan.
+   *               (Pouf's is 201,168,255 — lavender.)
+   *   clay-drop   what the object casts on the page below it. Warm brown
+   *               ink. (Pouf's is 58,46,92 — plum.)                       */
+  --clay-floor: 205, 168, 130;
+  --clay-drop: 69, 58, 48;
+
+  /* Warm ink at set alphas, for the handful of hairlines and washes that are
+     not part of the cushion recipe. */
+  --ink-08: rgba(69, 58, 48, 0.08);
+  --ink-14: rgba(69, 58, 48, 0.14);
+  --ink-22: rgba(69, 58, 48, 0.22);
+  --ink-38: rgba(69, 58, 48, 0.38);
+}
+
+/* ============================================================================
+ * 3. EDGES
+ *
+ * Pouf ships 32px cards and 20px controls. Both come down a little — 32px on
+ * a 380px card is a very large corner, and the letter ornament (a stamp, a
+ * postmark, ruled lines) needs a bit more flat edge to sit against than that
+ * leaves. 24/16 keeps the softness and gives the ornament somewhere to live.
+ * ========================================================================= */
+:root {
+  --radius-card: 24px;
+  --radius-control: 16px;
+  --radius-blob: 24px;
+  --radius-pill: 999px;
+
+  --r-card: var(--radius-card);
+  --r-control: var(--radius-control);
+  --r-blob: var(--radius-blob);
+  --r-pill: var(--radius-pill);
+}
+
+/* ============================================================================
+ * 4. THE CUSHION, WARMED
+ *
+ * Pouf's recipe is three shadows encoding one physical claim: light from
+ * above (an inner top highlight), the object's own thickness (an inner floor
+ * shadow), and its cast onto the page (an outer drop). That claim is exactly
+ * right and is kept intact — every offset, blur and alpha below is pouf's.
+ * Only the two COLOURS change, via the tokens in §2.
+ *
+ * `--lip` and `--lip-row` are pouf's own values, restored. They matter: pouf
+ * uses them to bias vertical padding, because the floor inset paints INSIDE
+ * the box and symmetric padding therefore reads bottom-heavy. Zeroing them
+ * (as a flatter theme would) tips every card's content visibly high.
+ * ========================================================================= */
+:root {
+  --lip: 10px;
+  --lip-row: 6px;
+
+  --pouf-card:
+    inset 0 calc(-1 * var(--lip)) 0 rgba(var(--clay-floor), 0.34),
+    inset 0 6px 0 rgba(255, 255, 255, 0.9),
+    0 20px 40px rgba(var(--clay-drop), 0.15);
+
+  --pouf-row:
+    inset 0 calc(-1 * var(--lip-row)) 0 rgba(var(--clay-floor), 0.3),
+    inset 0 4px 0 rgba(255, 255, 255, 0.9),
+    0 8px 18px rgba(var(--clay-drop), 0.1);
+  --pouf-row-hover:
+    inset 0 calc(-1 * var(--lip-row)) 0 rgba(var(--clay-floor), 0.45),
+    inset 0 4px 0 rgba(255, 255, 255, 0.95),
+    0 12px 24px rgba(var(--clay-drop), 0.16);
+
+  /* Controls sit on a pastel accent, not on ivory, so their bevels stay black
+     and white at pouf's own alphas — a tan floor inside a peach button would
+     just muddy it. Only the outer drop, which lands on the page, is warmed. */
+  --pouf-control:
+    inset 0 -6px 0 rgba(0, 0, 0, 0.15), inset 0 4px 0 rgba(255, 255, 255, 0.35),
+    0 8px 16px rgba(var(--clay-drop), 0.2);
+  --pouf-control-active:
+    inset 0 -3px 0 rgba(0, 0, 0, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 4px 10px rgba(var(--clay-drop), 0.15);
+  --pouf-blob:
+    inset 0 -8px 0 rgba(0, 0, 0, 0.12), inset 0 4px 0 rgba(255, 255, 255, 0.4),
+    0 10px 20px rgba(var(--clay-drop), 0.15);
+
+  --pouf-field:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.06), inset 0 4px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 2px rgba(var(--clay-floor), 0.28);
+  --pouf-field-focus:
+    inset 0 -4px 0 rgba(0, 0, 0, 0.06), inset 0 4px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 3px var(--purple);
+}
+
+/* ============================================================================
+ * 5. PAPER TEXTURE
+ *
+ * Fibre, drawn by the browser: one `feTurbulence` tile as a data URI. No
+ * asset, no request, ~450 bytes, and it tiles at any size. It is the one
+ * thing here that is not claymorphism, and it is what stops a large flat
+ * pastel fill from reading as a swatch.
+ *
+ * Applied as a BACKGROUND-IMAGE on the surfaces themselves rather than as one
+ * fixed overlay across the viewport, which is the only way to honour the
+ * decision in design_handoff.txt §3 — "pouf chrome, NEUTRAL drawing surface".
+ * A letter is somebody's drawing, and texturing the paper under it would land
+ * on every stroke and every GIF. Painted per-surface, the grain reaches the
+ * page, the cards and the dialogs, and stops at the edge of the canvas.
+ * ========================================================================= */
+:root {
+  --grain-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  --grain-desk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.09'/%3E%3C/svg%3E");
+}
+
+body {
+  background-color: var(--bg);
+  background-image:
+    var(--grain-desk),
+    linear-gradient(180deg, rgba(255, 253, 247, 0.6), rgba(255, 253, 247, 0) 420px);
+  background-attachment: fixed, fixed;
+}
+
+/* Every soft surface in the system. `background-image` paints OVER
+   `background-color`, so pouf's own `bg-surface` still decides the colour and
+   this only adds fibre on top of it. */
+.pouf-card,
+.pouf-rowcard,
+.pouf-dialog,
+.pouf-sheet-dialog,
+.pouf-navbar,
+.pouf-popover,
+.pouf-menu,
+.pouf-toast,
+#whiteboard-container {
+  background-image: var(--grain-paper);
+}
+
+/* ============================================================================
+ * 6. THE HAND
+ *
+ * Caveat, and only here. See §1 for why the list is this short.
+ * ========================================================================= */
+.wordmark {
+  font-family: var(--font-hand);
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  /* Caveat's cap height sits well below Nunito's at the same px, so it needs
+     both a size bump and a baseline nudge or it hangs above the mail icon it
+     sits beside in the navbar. */
+  font-size: 1.42em;
+  line-height: 1;
+  transform: translateY(0.06em);
+  display: inline-block;
+}
+
+/* An empty state's title.
+ *
+ * `Empty` renders that title through `Text`, not through `Heading`, so a rule
+ * aimed at `.pouf-h3` matches nothing. And `Text` renders a <span>, not the
+ * <p> design_handoff.txt §8 assumes — checked in the DOM, because the Blob
+ * above it is also a <span> and a `:first-of-type` guess would have silently
+ * selected that instead. The title is the first `.pouf-text` FOLLOWING the
+ * blob; the optional second one is the muted body copy under it. */
+.pouf-empty > .pouf-blob + .pouf-text {
+  font-family: var(--font-hand);
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: 0.005em;
+  color: var(--ink);
+}
+
+/* ============================================================================
+ * 7. LITERALS THE TOKENS CAN'T REACH
+ *
+ * Most of pouf is token-driven, but a handful of components bake the lavender
+ * `rgba(201, 168, 255, …)` and the plum shadow `rgba(58, 46, 92, …)` straight
+ * into a class string or a rule. Those are the values a token swap CANNOT
+ * touch, and every one is a visible cool bruise on a warm page:
+ *
+ *   Button variant="quiet"   a 2px lavender ring   Button.tsx:68
+ *   Navbar links             lavender hover wash   navbar.tsx:70/80/95
+ *   Separator                lavender hairline     separator.tsx:6
+ *   Slider / Avatar          plum drop shadow      slider.tsx:35, avatar.tsx:21
+ *   Toast                    plum drop shadow      pouf.css .pouf-toast
+ *   Skeleton                 lavender shimmer      pouf.css .pouf-skeleton
+ *   Overlay                  plum scrim            pouf.css .pouf-overlay
+ *
+ * Found by grepping the registry sources for colour literals rather than by
+ * spotting them on screen, so the list is exhaustive for what this app
+ * renders — the remaining hits (table, chart, bell, breadcrumb, scrollarea)
+ * are on components the app never mounts.
+ *
+ * Corrected HERE rather than in the registry files, for the `shadcn add`
+ * reason at the top. Every one keeps pouf's geometry and changes only hue.
+ * ========================================================================= */
+
+/* -- Blobs and avatars: fully round ---------------------------------------
+ * Pouf makes both a rounded TILE — `--radius-blob` on the larger sizes and
+ * hard-coded 14/18px on the small ones. Round instead. A circle is the most
+ * rounded a corner can get, an avatar is conventionally one, and it gives the
+ * two most decorative objects in the app a shape nothing else has. */
+.pouf-blob,
+.pouf-avatar {
+  border-radius: 999px;
+}
+
+/* -- Navbar --------------------------------------------------------------- */
+.pouf-navbar {
+  /* Pouf makes this a full `rounded-pill`. At 64px tall and full width that
+     is a lozenge; `--r-card` keeps it soft while letting it read as the top
+     of a page rather than a floating capsule. */
+  border-radius: var(--r-card);
+}
+
+.pouf-navbar__links a:hover:not([aria-current='page']),
+.pouf-navbar__mobile a:hover:not([aria-current='page']),
+.pouf-navbar__mobile > summary:hover {
+  background: rgba(205, 189, 245, 0.3);
+}
+
+/* -- Button --------------------------------------------------------------- */
+
+/* The quiet variant's ring, at pouf's own 2px and alpha — only the hue moves,
+   from the old lavender to this theme's lilac. */
+.pouf-btn:where(.bg-transparent) {
+  box-shadow: inset 0 0 0 2px rgba(205, 189, 245, 0.62);
+}
+
+/* -- Quiet + explicitly pink: the declining action ------------------------
+ *
+ * design_handoff.txt §3 records the decision that Decline is
+ * `tone="pink" variant="quiet"`, because pouf has no `destructive`. Worth
+ * knowing before touching this: in pouf as shipped, that decision renders
+ * NOTHING. The quiet variant hard-codes its ring colour and never reads
+ * `--tone` at all, so Decline was pixel-identical to "Sign out" and to every
+ * other quiet button on the page.
+ *
+ * Made real here, and the tone classes are what make that safe: `tone`
+ * DEFAULTS to `purple` on every Button, so `.tone-purple` carries no intent
+ * and cannot be keyed on — but `.tone-pink` is only ever present because
+ * somebody asked for it. Quiet + pink is an unambiguous "this is the negative
+ * one".
+ *
+ * A rose ring and rose ink, not a fill: the whole point of the original
+ * decision was that Decline stays reachable without competing with Accept,
+ * and a filled warning button wins the row. The ink is `--wax-deep` and not
+ * the pastel — 7.02:1 on paper, where the pastel itself measures 1.5:1 and is
+ * unusable as text. */
+.pouf-btn.tone-pink:where(.bg-transparent) {
+  box-shadow: inset 0 0 0 2px rgba(255, 195, 201, 0.95);
+  color: var(--wax-deep);
+}
+.pouf-btn.tone-pink:where(.bg-transparent):enabled:hover {
+  box-shadow: inset 0 0 0 2px var(--wax);
+  background: rgba(255, 195, 201, 0.28);
+  color: var(--wax-deep);
+}
+
+/* -- Separator ------------------------------------------------------------ */
+.pouf-separator {
+  background: rgba(var(--clay-floor), 0.42);
+}
+.pouf-menu__sep {
+  background: rgba(var(--clay-floor), 0.42);
+}
+
+/* -- Plum drop shadows ----------------------------------------------------
+   Same geometry, warm ink. `rgba(58,46,92,…)` is a cool violet-grey; on cream
+   it greys the warmth out of whatever it falls on. */
+.pouf-avatar {
+  box-shadow: 0 10px 20px rgba(var(--clay-drop), 0.16);
+}
+.pouf-slider__thumb {
+  box-shadow: 0 2px 6px rgba(var(--clay-drop), 0.26);
+}
+.pouf-toast {
+  box-shadow:
+    inset 0 -9px 0 rgba(0, 0, 0, 0.05), inset 0 6px 0 rgba(255, 255, 255, 0.5),
+    0 14px 30px rgba(var(--clay-drop), 0.2);
+}
+
+/* -- Skeleton: paper held up to the light --------------------------------- */
+.pouf-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg) 25%,
+    rgba(255, 253, 247, 0.95) 50%,
+    var(--bg) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* -- Overlay --------------------------------------------------------------
+   Pouf's scrim is a plum wash. Warm ink instead, so the page dimming behind a
+   dialog still reads as the same room. */
+.pouf-overlay {
+  background: rgba(69, 58, 48, 0.34);
+}
+
+/* ============================================================================
+ * 8. UNHURRIED MOTION
+ *
+ * The product's premise is that a letter does not arrive when you want it to.
+ * An interface that snaps is arguing with that. Pouf's dialog opens on
+ * `cubic-bezier(0.2, 0.9, 0.3, 1.3)` — a hard overshoot. That is kept in
+ * spirit (a cushion does bounce a little) but softened and lengthened: the
+ * overshoot drops from 1.3 to 1.06, and the duration goes up.
+ *
+ * `prefers-reduced-motion` is already neutralised globally by pouf's own base
+ * layer (`transition-duration: 0.01ms !important`), so nothing here needs to
+ * re-guard it. JS-driven motion is not covered by that rule and guards itself
+ * — see App.tsx and SealButton.tsx.
+ * ========================================================================= */
+:root {
+  /* Exported for the components that animate in JS (App.tsx's page settle),
+     so the curve is defined in one place. */
+  --ease-settle: cubic-bezier(0.22, 0.61, 0.28, 1);
+  --ease-cushion: cubic-bezier(0.22, 0.68, 0.28, 1.06);
+}
+
+.pouf-dialog[data-state='open'] {
+  animation: letter-settle 300ms var(--ease-cushion);
+}
+.pouf-dialog[data-state='closed'] {
+  animation: letter-lift 180ms var(--ease-settle) forwards;
+}
+
+/* Set down onto the desk: it arrives from slightly above, slightly large, and
+   comes to rest with one soft cushion of give at the end. */
+@keyframes letter-settle {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 16px)) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes letter-lift {
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 8px)) scale(0.99);
+  }
+}
+
+/* Controls take a beat longer to answer than pouf's 120ms default. */
+.pouf-btn,
+.pouf-navlink,
+.pouf-rowcard {
+  transition:
+    box-shadow 200ms var(--ease-settle),
+    background 200ms var(--ease-settle),
+    transform 200ms var(--ease-settle);
+}

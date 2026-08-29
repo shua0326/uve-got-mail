@@ -5,19 +5,19 @@ services:
     env_file:
       - ./BE/.env
     environment:
-      PORT: "3000"
+      PORT: "8888"
     ports:
-      - "3000:3000"
+      - "8888:8888"
     volumes:
       - ./BE:/app
       - /app/node_modules
-    command: sh -c "pnpm prisma generate && pnpm dev"
+    command: sh -c "pnpm install && pnpm prisma generate && pnpm dev"
 
   frontend:
     build:
       context: ./FE
     environment:
-      BACKEND_URL: http://backend:3000
+      BACKEND_URL: http://backend:8888
     env_file:
       - path: ./FE/.env
         required: false

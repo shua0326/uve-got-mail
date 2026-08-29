@@ -6,7 +6,7 @@ import { ErrorNote } from "./pouf/feedback";
 import { Field, Input } from "./pouf/Input";
 import { Stack } from "./pouf/layout";
 import { Separator } from "./pouf/separator";
-import { Eyebrow } from "./pouf/text";
+import { Eyebrow, Heading } from "./pouf/text";
 import { toast } from "./pouf/toaster";
 
 /**
@@ -22,6 +22,26 @@ import { toast } from "./pouf/toaster";
  * AddFriendDialog: pouf's `Dialog` requires a real `trigger` element
  * (DESIGN_MIGRATION_PLAN.md §4.2). The caller renders this where the "send"
  * button belongs — which is only ever while a draft exists.
+ *
+ * TWO STEPS, ON PURPOSE
+ *
+ * Choosing a recipient and sending used to be one click: every name in the
+ * friends list was itself the send button. That is the right shape for a chat
+ * message and the wrong one for a letter — it makes the most irreversible
+ * action in the app the easiest thing on the screen to do by accident, and it
+ * never shows you who you picked before it has already gone.
+ *
+ * So addressing and sending are separated. Step one picks a recipient and
+ * does nothing else; step two shows the letter addressed and asks for one
+ * deliberate confirmation. Nothing is posted until that second act — and
+ * "back" between them costs one click, because changing your mind about who a
+ * letter is for is a normal thing to do.
+ *
+ * Step two briefly carried a wax-seal press-and-hold. It was removed: it
+ * never read as sealing anything, and an ornamental gesture in front of the
+ * one irreversible action in the app is a cost with no matching benefit. The
+ * separation of addressing from sending is the part that was doing the real
+ * work, and it stays.
  */
 export default function SendLetterDialog({
   letter,
@@ -36,6 +56,9 @@ export default function SendLetterDialog({
   const [friendsError, setFriendsError] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [sending, setSending] = useState(false);
+  // null = still addressing. Set = addressed, waiting to be sealed.
+  const [recipient, setRecipient] = useState<MailUserSummary | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -58,6 +81,8 @@ export default function SendLetterDialog({
     if (!next) {
       setUsername("");
       setSending(false);
+      setRecipient(null);
+      setLookupError(null);
     }
     setOpen(next);
   }
@@ -82,32 +107,80 @@ export default function SendLetterDialog({
     }
   }
 
-  async function sendToUsername() {
+  /** Resolves a typed username to a real recipient and moves to the seal
+   *  step. It no longer sends — the lookup is part of ADDRESSING the letter,
+   *  and a 404 here has to be recoverable without losing the draft. */
+  async function addressByUsername() {
     const trimmed = username.trim();
     if (!trimmed || sending) return;
     setSending(true);
+    setLookupError(null);
     try {
-      const recipient = await findUserByUsername(trimmed);
-      if (!recipient) {
-        toast.error("No such user", {
-          description: `Nobody is using the username "${trimmed}".`,
-        });
+      const found = await findUserByUsername(trimmed);
+      if (!found) {
+        setLookupError(`Nobody is using the username "${trimmed}".`);
         return;
       }
-      setSending(false);
-      await send(recipient);
+      setRecipient(found);
     } catch (err) {
       console.error("Failed to look that username up", err);
-      toast.error("Couldn't send that letter", {
-        description: err instanceof Error ? err.message : String(err),
-      });
+      setLookupError(err instanceof Error ? err.message : String(err));
     } finally {
       setSending(false);
     }
   }
 
   const hasFriends = friends.length > 0;
+  const recipientLabel = recipient
+    ? recipient.username || recipient.email || "them"
+    : "";
 
+  // ---- Step two: addressed, waiting to be sealed. ------------------------
+  if (recipient) {
+    return (
+      <Dialog
+        open={open}
+        onOpenChange={handleOpenChange}
+        trigger={
+          <Button size="sm" tone="mint">
+            Send this letter…
+          </Button>
+        }
+        title="Ready to send?"
+        description="There's no unsending it — and it won't arrive straight away. Letters are delivered together at a random time each day."
+      >
+        <Stack gap={5}>
+          <Stack gap={1}>
+            <Eyebrow>To</Eyebrow>
+            <Heading level={3}>{recipientLabel}</Heading>
+          </Stack>
+
+          <Button
+            block
+            size="lg"
+            tone="purple"
+            disabled={!letter}
+            loading={sending}
+            onClick={() => void send(recipient)}
+          >
+            Send it to {recipientLabel}
+          </Button>
+
+          <Button
+            size="sm"
+            variant="quiet"
+            block
+            disabled={sending}
+            onClick={() => setRecipient(null)}
+          >
+            ← Send it to someone else
+          </Button>
+        </Stack>
+      </Dialog>
+    );
+  }
+
+  // ---- Step one: who is it for? ------------------------------------------
   return (
     <Dialog
       open={open}
@@ -117,8 +190,8 @@ export default function SendLetterDialog({
           Send this letter…
         </Button>
       }
-      title="Send your letter"
-      description="It won't arrive straight away — letters are delivered together at a random time each day."
+      title="Who's it for?"
+      description="Address the letter first. Nothing is sent until you seal it on the next step."
     >
       <Stack gap={4}>
         {hasFriends && (
@@ -131,7 +204,9 @@ export default function SendLetterDialog({
                   variant="quiet"
                   block
                   disabled={sending || !letter}
-                  onClick={() => void send(friend)}
+                  // Addresses the letter. It does NOT send — see the note at
+                  // the top of this file.
+                  onClick={() => setRecipient(friend)}
                 >
                   {friend.username || friend.email}
                 </Button>
@@ -148,7 +223,7 @@ export default function SendLetterDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void sendToUsername();
+            void addressByUsername();
           }}
         >
           <Stack gap={4}>
@@ -156,19 +231,26 @@ export default function SendLetterDialog({
                 which read as a dangling conjunction whenever the friends list
                 above it was empty. */}
             <Field
-              label={hasFriends ? "Or send to a username" : "Send to a username"}
+              label={hasFriends ? "Or address it to a username" : "Address it to a username"}
               hint="Writing to someone new? Sending the letter makes you friends."
+              // A missing username is a correction to make in place, not a
+              // toast that vanishes while you are still reading it.
+              error={lookupError ?? undefined}
             >
               {(id, describedBy) => (
                 <Input
                   id={id}
                   describedBy={describedBy}
                   value={username}
-                  onChange={setUsername}
+                  onChange={(next) => {
+                    setUsername(next);
+                    setLookupError(null);
+                  }}
                   placeholder="username"
                   autoComplete="off"
                   autoCapitalize="none"
                   spellCheck={false}
+                  invalid={Boolean(lookupError)}
                   disabled={sending}
                 />
               )}
@@ -181,7 +263,7 @@ export default function SendLetterDialog({
               disabled={!letter || username.trim().length === 0}
               loading={sending}
             >
-              Send
+              Address it
             </Button>
           </Stack>
         </form>

@@ -81,6 +81,18 @@
   overflow: hidden;
 }
 
+/* The animated wrapper App.tsx puts around whichever screen is showing.
+   `absolute; inset: 0` rather than `height: 100%`, and that is load-bearing:
+   framer applies a `transform` for the duration of the transition, and a
+   transformed element becomes the containing block for its absolutely
+   positioned descendants — which is every canvas HUD. Sized to exactly the
+   container box, the HUDs land in the same place whether the transform is
+   present or not. */
+.stage-anim {
+  position: absolute;
+  inset: 0;
+}
+
 /* Fills #whiteboard-container and establishes the stacking context the HUDs
    position against. Used by LetterCanvas and LetterPlayer. */
 .stage {
@@ -99,6 +111,14 @@
   gap: var(--s4);
   padding: var(--s5);
   box-sizing: border-box;
+}
+
+/* On a phone the 20px inset is 40px of the ~380px the gallery row has to work
+   with — more than one of its two buttons. */
+@media (max-width: 640px) {
+  .stage-center {
+    padding: var(--s3);
+  }
 }
 
 /* --- Floating canvas overlays -------------------------------------------- */
@@ -209,9 +229,26 @@
 
 /* The inbox gallery card. A pouf `Card` hugs its content, and a letter from
    someone with a short username would otherwise render a card narrower than
-   its own "Letter 1 of 3" footer — so the width is pinned on the wrapper. */
+   its own "Letter 1 of 3" footer — so the width is set on the wrapper.
+
+   `width: 100%` + `max-width`, NOT a fixed `min(380px, 70vw)`. The fixed
+   version could not shrink, so on a phone the card kept its full width and
+   pushed the prev/next buttons out past `#whiteboard-container`'s
+   `overflow: hidden` — at 430px both arrows were sliced in half by the
+   container's edge. Given a percentage width and `min-width: 0`, the card
+   absorbs whatever the flex row has left after the two buttons, and caps
+   itself at 380px on a desktop where there is plenty. */
 .letter-card {
-  width: min(380px, 70vw);
+  width: 100%;
+  max-width: 380px;
+  min-width: 0;
+}
+
+/* ...and the buttons it is now sharing that row with must not be the things
+   that give way. Without this they are equally shrinkable and a very narrow
+   viewport squashes the arrows into slivers instead of the card. */
+.stage-center .pouf-row > .pouf-btn {
+  flex: none;
 }
 
 /* A scrolling list inside the fixed stage box (Requests). `ScrollArea` is the
@@ -293,4 +330,228 @@
 
 .pouf-toasts {
   z-index: 100003;
+}
+
+/* The navbar's mobile dropdown, and it is the exception the block above
+   predicts. Below 760px of navbar width the links collapse into a `<details>`
+   menu (pouf/navbar.tsx), and that menu is NOT portalled — it is an
+   absolutely positioned child of the navbar at pouf's `z-20`, sitting in the
+   same root stacking context as the HUDs. So on a phone, opening the menu
+   over the composer drew the nav links UNDERNEATH the recording HUD: the only
+   route to the other three screens, half-covered by a toolbar.
+   (design_handoff.txt §5 lists this menu as opened-but-never-clicked; this is
+   what was waiting there.)
+
+   `100000` rather than a number above the toast band on purpose. It clears
+   the HUDs, and it deliberately TIES with `.pouf-overlay` — which is
+   portalled to <body> and therefore later in document order, so a modal scrim
+   still covers an open nav menu rather than the other way round. A menu that
+   could out-rank a dialog would be the same bug facing the other way. */
+.pouf-navbar__mobile {
+  z-index: 100000;
+}
+
+/* ============================================================================
+ * THE WRITING DESK — app-level pieces of the letter theme.
+ *
+ * `theme-letter.css` re-points 1st-Pouf's tokens at a warm palette; it is
+ * pure theme and knows nothing about this app. What follows is the part that
+ * is only true HERE — the stamp and postmark on an inbox letter, the feint
+ * rules on its card, the dateline over the composer. Same rule as the rest of
+ * this file: positioning and app-specific ornament, never a restyle of a pouf
+ * component's interior.
+ * ========================================================================= */
+
+/* --- The blotter ---------------------------------------------------------
+ *
+ * `#whiteboard-container` is not only the canvas — every screen renders
+ * inside it (App.tsx). For the composer and the player tldraw paints the box
+ * edge to edge and this colour is never seen. For the Inbox, Requests and
+ * Profile it IS the visible field the cards sit on, and while it was the same
+ * ivory as the cards those cards had nothing to sit *on*: an ivory card on an
+ * ivory panel is a shadow, not an object.
+ *
+ * So the panel becomes a desk blotter — a half-step darker than the paper,
+ * with the light falling off toward its edges. The letter card reads as
+ * something laid down on it. */
+#whiteboard-container {
+  background-color: #f8f1e2;
+  background-image:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 253, 246, 0.75), rgba(255, 253, 246, 0) 65%),
+    var(--grain-paper);
+  box-shadow:
+    var(--pouf-card),
+    inset 0 0 70px -24px var(--ink-14);
+}
+
+/* --- The wordmark --------------------------------------------------------
+ *
+ * The one place the product signs its own name, so it is the one place a real
+ * hand is unambiguously right. Caveat sits noticeably smaller on the body
+ * than a serif at the same px, hence the size bump and the baseline nudge —
+ * without them it hangs above the icon it sits beside in the navbar. */
+.wordmark {
+  font-family: var(--font-hand);
+  font-variation-settings: normal;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  font-size: 1.42em;
+  line-height: 1;
+  transform: translateY(0.06em);
+  display: inline-block;
+}
+
+/* --- Datelines -----------------------------------------------------------
+ *
+ * "Melbourne, Saturday 30 August" — the line a letter opens with, before
+ * anything is said. It appears over the composer (what you are writing now)
+ * and on an inbox letter (when it was written). Small caps rather than a
+ * hand, because it is a fact about the letter rather than part of it. */
+.dateline {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Only the composer's dateline refuses to wrap. It sits in a single-line HUD
+   where a second line makes the bar taller and covers more of the drawing.
+
+   On the inbox card it must be ALLOWED to wrap, and that is load-bearing:
+   "FRIDAY 28 AUGUST · 19:21" set unbreakable was the widest unbreakable thing
+   in the card, so it — not the card's own max-width — was setting the card's
+   minimum width. At 430px that held the card 25px wider than the row had room
+   for, and the prev/next buttons were pushed past `#whiteboard-container`'s
+   `overflow: hidden` and sliced off at both edges. */
+.hud .dateline {
+  white-space: nowrap;
+}
+
+/* --- The stamp and the postmark ------------------------------------------
+ *
+ * A letter in the inbox carries a stamp; once you have read it, the stamp is
+ * franked. That is the whole state model of this screen drawn as an object:
+ * `Badge tone="purple">New</Badge>` said the same thing in words, and the
+ * badge is kept for the screen reader and for anyone who does not read the
+ * metaphor — the postmark is redundant on purpose, never the sole signal.
+ * (Colour and ornament alone can't carry state — pouf's own rule.) */
+.stamp {
+  position: relative;
+  width: 62px;
+  height: 74px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-accent);
+  background-color: var(--purple);
+
+  /* Perforations.
+   *
+   * NOT a mask. The obvious `mask-image: radial-gradient(…)` +
+   * `mask-composite` tiles the scallop across the entire FACE, not just the
+   * rim — confining it to the edges takes a five-layer mask with a per-layer
+   * composite list, which is both unreadable and fragile. (Tried it; the
+   * stamp came out looking like a colander.)
+   *
+   * These are drawn instead: four strips of dots in the card's own colour,
+   * repeated along each edge. A bite out of the stamp and a dot of the paper
+   * behind it are the same picture. Each dot stops hard at 98%/100% — an
+   * antialiased rim reads as a smudge rather than a tear.
+   *
+   * The one thing this costs, named so nobody rediscovers it: the dots are
+   * opaque `--surface`, so the stamp is only correct on a paper-coloured
+   * surface. It lives inside a `Card`, which is exactly that. Moving it onto
+   * the blotter or the desk means changing that colour with it. */
+  background-image:
+    radial-gradient(circle 5px at 50% 0, var(--surface) 98%, transparent 100%),
+    radial-gradient(circle 5px at 50% 100%, var(--surface) 98%, transparent 100%),
+    radial-gradient(circle 5px at 0 50%, var(--surface) 98%, transparent 100%),
+    radial-gradient(circle 5px at 100% 50%, var(--surface) 98%, transparent 100%);
+  background-size: 11px 11px;
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+}
+
+/* The gummed square the stamp is stuck to, plus its own hairline frame. */
+.stamp::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid var(--ink-22);
+  border-radius: 1px;
+}
+
+/* The frank. A ring with three short bars struck through it, rotated off
+   square the way a hand-cancel always is — it is stamped by a person who is
+   not lining it up. The bars are 62% wide and centred rather than edge to
+   edge: full-width ones read as a "no entry" slash across the stamp, which is
+   the opposite of what a cancellation means. Kept faint, because a postmark
+   is ink that has partly taken. */
+.stamp--franked::after {
+  content: '';
+  position: absolute;
+  /* CENTRED EXPLICITLY, and this is the bug that was here: with `position:
+     absolute` but no `top`/`left`, the postmark fell back to its STATIC
+     position — which inside a centring flex row is the end of the line, after
+     the icon. It rendered visibly down and to the right of the stamp it is
+     supposed to cancel. An absolutely positioned pseudo-element with no
+     offsets is not centred by its parent's `place-items`; it has to say so. */
+  top: 50%;
+  left: 50%;
+  width: 54px;
+  height: 54px;
+  border: 2px solid var(--wax-deep);
+  border-radius: 50%;
+  opacity: 0.42;
+  /* Order matters: centre first, then the deliberate off-square strike. */
+  transform: translate(-50%, -50%) rotate(-11deg) translate(4px, -3px);
+  background-image:
+    linear-gradient(var(--wax-deep), var(--wax-deep)),
+    linear-gradient(var(--wax-deep), var(--wax-deep)),
+    linear-gradient(var(--wax-deep), var(--wax-deep));
+  background-size: 62% 2px;
+  background-position: 50% 34%, 50% 50%, 50% 66%;
+  background-repeat: no-repeat;
+}
+
+/* --- The letter card -----------------------------------------------------
+ *
+ * Feint rules: the lines already on the paper before anybody writes on it.
+ *
+ * They are a BACKGROUND LAYER ON THE CARD, not a pseudo-element on the
+ * wrapper. The first attempt was the latter and it drew nothing at all — the
+ * Card paints an opaque `--surface` over its whole box, and a `::before` on
+ * the wrapper is painted underneath that. Raising it above the card instead
+ * would put the rules across the sender's name: a strike-through, not a
+ * feint. Composed into the card's own `background-image` they land where
+ * ruled paper actually has them, under the writing.
+ *
+ * The grain (theme-letter.css §5) is restated here because a second
+ * `background-image` on the same element REPLACES the first rather than
+ * adding to it — omit it and this one card is the only unfibred surface in
+ * the app.
+ *
+ * The rules run the full height rather than starting below the letterhead,
+ * which is how ruled paper works: the date and the salutation go on the
+ * lines too. */
+.letter-card {
+  position: relative;
+}
+
+.letter-card .pouf-card {
+  background-image:
+    repeating-linear-gradient(180deg, transparent 0 27px, var(--rule) 27px 28px),
+    var(--grain-paper);
+  /* Inset from the card's own edges rather than run full-bleed. With a 4px
+     corner they could reach the edge and still look printed; against pouf's
+     24px cushion they ran straight into the curve and read as a table border.
+     A `repeating-linear-gradient` fills whatever box `background-size` gives
+     it, so sizing the layer smaller than the element and turning repeat off
+     is all it takes to bring the margins back. */
+  background-position: 28px 0, 0 0;
+  background-size: calc(100% - 56px) 100%, auto;
+  background-repeat: no-repeat, repeat;
 }

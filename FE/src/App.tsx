@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useSession } from './auth/useSession'
 import Header, { type Tab } from './components/Header'
 import Inbox from './components/Inbox'
@@ -36,8 +37,40 @@ function clearLetterParam() {
   window.history.replaceState({}, '', url)
 }
 
+/**
+ * How a screen arrives.
+ *
+ * The premise of this product is that a letter does not turn up when you want
+ * it to, and an interface that snaps between screens is arguing with that. So
+ * a screen is a sheet being laid onto the desk: it comes from a little above,
+ * a hair large, and settles. `ease` is a pure deceleration curve with no
+ * overshoot — paper does not bounce, and the whole point is that it stops.
+ * The same curve is `--ease-settle` in theme-letter.css, which is where the
+ * CSS-driven half of the motion (dialogs, controls) reads it from.
+ *
+ * Kept small on purpose: this fires on every tab change, and a transition you
+ * notice on the fourth use is a transition that is too big.
+ */
+const PAGE = {
+  initial: { opacity: 0, y: -10, scale: 1.008 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: 6, scale: 0.996 },
+  transition: { duration: 0.34, ease: [0.22, 0.61, 0.28, 1] as const },
+}
+
+/** Reduced motion keeps the crossfade and drops every movement. pouf's base
+ *  layer neutralises CSS transitions globally, but framer animates in JS and
+ *  is not covered by that — this is the equivalent, done explicitly. */
+const PAGE_STILL = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.18 },
+}
+
 function App() {
   const { status: sessionStatus, user, setUser, backendError, signOut } = useSession()
+  const reduceMotion = useReducedMotion()
   const [mode, setMode] = useState<Mode>(() => (letterIdFromUrl() ? 'loading' : 'inbox'))
   // Where the "back" action returns to once a letter finishes playing —
   // the inbox (viewed from the mail list / a shared link) or the composer
@@ -180,6 +213,12 @@ function App() {
           </ErrorNote>
         )}
         <div id="whiteboard-container">
+          {/* `mode="wait"` and not the default: two screens cross-fading here
+              would mean two tldraw editors mounted at once, each with its own
+              store and its own rAF loop, over the same box. The outgoing
+              sheet leaves before the next one is laid down. */}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={mode} className="stage-anim" {...(reduceMotion ? PAGE_STILL : PAGE)}>
           {mode === 'inbox' && <Inbox onView={handleViewMail} />}
           {mode === 'requests' && <Requests />}
           {mode === 'compose' && <LetterCanvas onFinish={handleFinish} />}
@@ -229,6 +268,8 @@ function App() {
               )}
             </>
           )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
       {/* Pouf's Toaster is a sibling, not a wrapper — it takes no children.
