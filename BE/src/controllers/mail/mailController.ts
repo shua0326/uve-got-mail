@@ -85,6 +85,13 @@ export async function sendMail(req: Request, res: Response): Promise<void> {
   
   res.status(200).json({ id: mail.id });
   } catch (error) {
+    // Logged, not swallowed. This catch used to return a bare 500 and discard
+    // `error`, which made a failing send undiagnosable: the client saw
+    // "Sending the letter failed (500)" and the server log said nothing at
+    // all. A send is the one write in this app the user cannot retry from
+    // memory — the recording only exists in the browser tab that drew it — so
+    // losing the reason is expensive.
+    console.error("[mail] sendMail failed:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 }
