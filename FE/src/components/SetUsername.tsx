@@ -57,7 +57,7 @@ export default function SetUsername({
           <Blob icon="user" tone="mint" size="md" />
           <Heading level={2}>Pick a username</Heading>
           <Text muted size="sm">
-            This is how other people will find and address you on U've Got Mail.
+            This is how other people will find and address you on uve got mail!
           </Text>
 
           <form onSubmit={handleSubmit}>
@@ -76,6 +76,7 @@ export default function SetUsername({
                   <Input
                     id={id}
                     describedBy={describedBy}
+                    autoFocus
                     value={username}
                     onChange={setUsername}
                     placeholder="username"

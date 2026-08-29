@@ -231,9 +231,16 @@ function App() {
           )}
         </div>
       </div>
-      {/* Pouf's Toaster is a sibling, not a wrapper: it renders its own fixed
-          viewport and takes no children. */}
-      <Toaster />
+      {/* Pouf's Toaster is a sibling, not a wrapper — it takes no children.
+          It also renders BARE items with no positioned wrapper of its own, by
+          design: its source notes that the shell owns the single
+          `.pouf-toasts` stack, so that two toast systems can't mount two fixed
+          stacks at identical coordinates and hide each other. Supplying that
+          stack is the app's job, and without it the toasts render static and
+          full-bleed at the bottom of the document. */}
+      <div className="pouf-toasts">
+        <Toaster />
+      </div>
     </>
   )
 }

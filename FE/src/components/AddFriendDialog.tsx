@@ -82,6 +82,7 @@ export default function AddFriendDialog() {
               <Input
                 id={id}
                 describedBy={describedBy}
+                autoFocus
                 value={username}
                 onChange={setUsername}
                 placeholder="username"

@@ -124,7 +124,27 @@
    style panel and page menu don't render. */
 .hud--bottom {
   bottom: 72px;
-  width: min(640px, calc(100% - var(--s8)));
+  width: min(780px, calc(100% - var(--s8)));
+}
+
+/* Everything in a HUD sits on one line. These are compact transport controls
+   over a canvas, and a wrapped "Back to compose" or a "0:00 /\A 0:00" timecode
+   makes the bar grow taller and cover more of the drawing. The slider is the
+   only element allowed to absorb slack (.hud-grow, below). */
+.hud .pouf-btn,
+.hud-time {
+  white-space: nowrap;
+}
+
+.hud-time {
+  flex: none;
+}
+
+/* The speed picker fills its container by default, which let it eat the width
+   the slider needs. Four options, none longer than "0.5×". */
+.hud-speed {
+  flex: none;
+  width: 96px;
 }
 
 /* The player's seek slider is the only element in its HUD that should absorb
@@ -140,7 +160,9 @@
 .gif-panel {
   position: absolute;
   z-index: 99998;
-  top: var(--s3);
+  /* Clears tldraw's own top-left main-menu button rather than covering it —
+     the two UIs must not fight for the same corner. */
+  top: 60px;
   bottom: 72px;
   left: var(--s3);
   width: 300px;
@@ -216,4 +238,59 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* --- Toast stack --------------------------------------------------------- */
+
+/* pouf's `.pouf-toasts` pins the stack to the top-right of the viewport, which
+   assumes nothing else lives there. This app's Navbar puts "Add friend" and
+   "Sign out" in exactly that corner, so an arriving toast landed on top of
+   them — covering two controls at the moment it was telling you something went
+   wrong. Pushed below the navbar: shell padding + the 64px navbar + a gap.
+   Only the offset is overridden; width, stacking and pointer-events stay
+   pouf's. */
+.pouf-toasts {
+  top: calc(var(--s5) + 64px + var(--s3) + env(safe-area-inset-top, 0px));
+}
+
+@media (max-width: 900px) {
+  .pouf-toasts {
+    top: calc(var(--s3) + 64px + var(--s3) + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* --- Stacking ------------------------------------------------------------ */
+
+/* The canvas HUDs have to out-rank tldraw's own UI, which sits in the high
+   hundreds inside .tl-container — hence the 99998/99999 above, carried over
+   from the pre-migration stylesheet. That puts them above pouf's entire
+   layer scale (overlays 50-70, toasts 80), so a dialog opened FROM a HUD
+   rendered underneath the HUD that opened it: the send dialog's submit button
+   was covered by the player transport bar.
+
+   Everything below is portalled to <body>, outside #whiteboard-container, so
+   raising it cannot affect tldraw. pouf's own relative order is preserved —
+   overlays under dialogs, toasts over both — just shifted above the HUD band.
+
+   .pouf-popover matters as much as the dialog here: the player's speed Select
+   drops its list through a popover, and that list opens from inside the HUD. */
+.pouf-overlay {
+  z-index: 100000;
+}
+
+.pouf-dialog,
+.pouf-sheet-dialog,
+.pouf-sheet {
+  z-index: 100001;
+}
+
+.pouf-popover,
+.pouf-menu,
+.pouf-hover,
+.pouf-tooltip {
+  z-index: 100002;
+}
+
+.pouf-toasts {
+  z-index: 100003;
 }

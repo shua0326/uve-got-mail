@@ -111,6 +111,10 @@ export default function GifPicker({ editor, onClose }: { editor: Editor; onClose
           </Row>
 
           <Input
+            // Without this the panel opens with focus still on the canvas, and
+            // every keystroke is a tldraw tool shortcut instead of a search —
+            // typing "cat" silently switches to the text tool.
+            autoFocus
             label={`Search ${type}`}
             value={query}
             onChange={setQuery}

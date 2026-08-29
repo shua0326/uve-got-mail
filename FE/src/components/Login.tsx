@@ -32,7 +32,7 @@ export default function Login() {
       <Card>
         <Stack gap={4}>
           <Blob icon="mail" tone="purple" size="lg" />
-          <Heading level={1}>U've Got Mail</Heading>
+          <Heading level={1}>uve got mail!</Heading>
           <Text muted>
             Hand-drawn letters that arrive once a day, at a time you don't get to pick.
           </Text>

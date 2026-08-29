@@ -80,7 +80,7 @@ export default function LetterCanvas({ onFinish }: { onFinish: (recording: Recor
           div supplies the position. */}
       <div className="hud hud--top">
         <Card variant="tight">
-          <Row gap={3} align="center" wrap={false}>
+          <Row gap={3} align="center" justify="center">
             <Status
               label={isRecording ? `Recording — ${frameCount} frames` : 'Draw to start recording'}
               tone={isRecording ? 'down' : 'idle'}

@@ -41,7 +41,7 @@ export default function Header({
       brand={
         <>
           <Icon name="mail" size="md" />
-          U've Got Mail
+          uve got mail!
         </>
       }
       links={links}

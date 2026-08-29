@@ -95,7 +95,10 @@ export default function LetterPlayer({
       ) : (
         <div className="hud hud--bottom">
           <Card variant="tight">
-            <Row gap={3} align="center" wrap={false}>
+            {/* Wraps on purpose: at phone width the transport is wider than
+                the stage, and nowrap pushed the speed picker off the edge.
+                Individual labels still never break — see .hud .pouf-btn. */}
+            <Row gap={3} align="center" justify="center">
               <Button size="sm" variant="quiet" onClick={onBack}>
                 ← {backLabel}
               </Button>
@@ -120,16 +123,20 @@ export default function LetterPlayer({
                 />
               </div>
 
-              <Text size="sm" muted num>
-                {formatMs(playhead)} / {formatMs(durationMs)}
-              </Text>
+              <span className="hud-time">
+                <Text size="sm" muted num>
+                  {formatMs(playhead)} / {formatMs(durationMs)}
+                </Text>
+              </span>
 
-              <Select
-                label="Playback speed"
-                value={String(speed)}
-                onChange={(next) => setSpeed(Number(next))}
-                options={SPEED_OPTIONS}
-              />
+              <div className="hud-speed">
+                <Select
+                  label="Playback speed"
+                  value={String(speed)}
+                  onChange={(next) => setSpeed(Number(next))}
+                  options={SPEED_OPTIONS}
+                />
+              </div>
             </Row>
           </Card>
         </div>
