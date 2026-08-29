@@ -74,11 +74,14 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
   const loadedRef = useRef(false)
   const needsMigrationRef = useRef(false)
 
+  // Returns whether the frames were applied successfully (false on a
+  // migration failure, which already transitions to the `error` status
+  // itself) so callers can tell whether it's safe to move on to `finished`.
   const applyFramesUpTo = useCallback(
-    (targetFrameIndex: number) => {
-      if (!editor || !recording) return
+    (targetFrameIndex: number): boolean => {
+      if (!editor || !recording) return false
       const from = nextFrameRef.current
-      if (targetFrameIndex <= from) return
+      if (targetFrameIndex <= from) return true
 
       const rawFrames = recording.frames.slice(from, targetFrameIndex)
       let forwardDiffs: ForwardDiff[]
@@ -90,7 +93,7 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
           if (m === null) {
             setErrorMessage("This letter was recorded with an incompatible tldraw version and can't be replayed.")
             setStatus('error')
-            return
+            return false
           }
           migrated.push(m)
         }
@@ -108,18 +111,20 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
         editor.store.applyDiff(squashed as unknown as Parameters<typeof editor.store.applyDiff>[0]),
       )
       nextFrameRef.current = targetFrameIndex
+      return true
     },
     [editor, recording],
   )
 
-  // Initial load: readonly, base state, camera framed to match the author.
+  // Initial load: base state, readonly, camera framed to match the author,
+  // then fast-forward to the finished artwork (see IMPLEMENTATION_PLAN.md
+  // §13 — opening a letter shows the final result, not a blank canvas;
+  // Replay is an explicit action, not autoplay-on-open).
   useEffect(() => {
     if (!editor || !recording) return
 
     const localSchema = editor.store.schema.serialize()
     needsMigrationRef.current = JSON.stringify(recording.schema) !== JSON.stringify(localSchema)
-
-    editor.updateInstanceState({ isReadonly: true })
 
     let failure: string | null = null
     try {
@@ -133,6 +138,13 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
       failure = "This letter can't be replayed on this version of the app."
     }
 
+    // `loadStoreSnapshot` clears the whole store — including the instance
+    // record that carries `isReadonly` — and reseeds it with defaults, so
+    // readonly must be (re)applied AFTER every snapshot load, never before,
+    // or it's silently wiped and the recipient gets a fully editable
+    // canvas (draw tool, style panel, and all). See §13.
+    editor.updateInstanceState({ isReadonly: true })
+
     if (failure) {
       // One-time failure transition tied to the imperative snapshot load
       // above, not a plain prop-to-state mirror.
@@ -145,16 +157,19 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
     nextFrameRef.current = 0
     playheadRef.current = 0
     loadedRef.current = true
-    // Autoplay on mount is the locked UX (plan §3.4/§4.4) — this kicks off
-    // playback as part of the same imperative setup as the snapshot load
-    // and camera framing above, not a plain prop-to-state mirror.
-    setStatus('playing')
+
+    const ok = applyFramesUpTo(recording.frames.length)
+    if (ok) {
+      playheadRef.current = recording.durationMs
+      setPlayhead(recording.durationMs)
+      setStatus('finished')
+    }
     requestAnimationFrame(() => editor.zoomToFit())
 
     return () => {
       loadedRef.current = false
     }
-  }, [editor, recording])
+  }, [editor, recording, applyFramesUpTo])
 
   // Playback loop.
   useEffect(() => {
@@ -210,6 +225,11 @@ export function usePlayer(editor: Editor | null, recording: Recording | null) {
           setErrorMessage("This letter can't be replayed on this version of the app.")
           setStatus('error')
           return
+        } finally {
+          // See the initial-load effect's comment (§13): `loadStoreSnapshot`
+          // wipes the instance record, so readonly must be reapplied after
+          // every one of its calls, including this backward-seek path.
+          editor.updateInstanceState({ isReadonly: true })
         }
         nextFrameRef.current = keyframe?.frameIndex ?? 0
       }

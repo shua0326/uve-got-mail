@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Tldraw, type Editor } from 'tldraw'
+import { Tldraw, type Editor, type TLUiOverrides } from 'tldraw'
 import { usePlayer } from '../replay/usePlayer'
 import type { Recording } from '../replay/format'
 
@@ -13,6 +13,24 @@ const CAMERA_OPTIONS = {
       initialZoom: 'fit-max' as const,
       baseZoom: 'fit-max' as const,
     },
+  },
+}
+
+// Readonly (usePlayer.ts §13) already blocks edits and makes tldraw's own
+// toolbar filter itself down to just Select/Hand/Laser — the three tools
+// marked `readonlyOk`. Select and Hand are exactly "manipulate the canvas
+// view" (marquee-select does nothing destructive; Hand pans); Laser isn't a
+// view control, so it's the one thing removed on top of that filtering.
+// The style panel has no reason to appear with no drawing tool ever
+// reachable, but it's hidden explicitly rather than left to infer that.
+const PLAYER_COMPONENTS = {
+  StylePanel: null,
+}
+
+const PLAYER_OVERRIDES: TLUiOverrides = {
+  tools(_editor, tools) {
+    delete tools.laser
+    return tools
   },
 }
 
@@ -36,7 +54,12 @@ export default function LetterPlayer({ recording, onBack }: { recording: Recordi
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <Tldraw options={CAMERA_OPTIONS} onMount={handleMount} />
+      <Tldraw
+        options={CAMERA_OPTIONS}
+        onMount={handleMount}
+        components={PLAYER_COMPONENTS}
+        overrides={PLAYER_OVERRIDES}
+      />
 
       {status === 'error' ? (
         <div className="player-hud player-hud-error">
