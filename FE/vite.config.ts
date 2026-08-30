@@ -16,7 +16,7 @@ import { defineConfig } from 'vite'
  * AggregateError [ECONNREFUSED] even when the server is up on IPv4.
  */
 function backendUrl(): string {
-  // docker-compose.yml sets BACKEND_URL (http://backend:3000) on the frontend
+  // docker-compose.yml sets BACKEND_URL (http://backend:8888) on the frontend
   // service. Only ./FE is mounted into that container, so the ../BE/.env
   // fallback below can't resolve there — the env var is the only signal.
   if (process.env.BACKEND_URL) return process.env.BACKEND_URL

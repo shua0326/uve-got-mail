@@ -39,10 +39,19 @@ export default function AddFriendDialog() {
 
     setSending(true);
     try {
-      await sendFriendRequest(trimmed);
-      toast.success("Friend request sent", {
-        description: `${trimmed} will see it in their Requests tab.`,
-      });
+      const { friended } = await sendFriendRequest(trimmed);
+      // Crossed requests: they had already asked, so this accepted theirs
+      // rather than queuing a second one. Saying "request sent" here would
+      // point them at a Requests tab with nothing in it.
+      if (friended) {
+        toast.success(`You and ${trimmed} are now friends`, {
+          description: "They had already sent you a request, so this accepted it.",
+        });
+      } else {
+        toast.success("Friend request sent", {
+          description: `${trimmed} will see it in their Requests tab.`,
+        });
+      }
       handleOpenChange(false);
     } catch (err) {
       console.error("Failed to send friend request", err);

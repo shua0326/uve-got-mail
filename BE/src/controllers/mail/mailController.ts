@@ -34,24 +34,52 @@ export async function getNewMail(req: Request, res: Response) {
 
 export async function sendMail(req: Request, res: Response): Promise<void> {
   try {
+    // Every rejection is settled before `saveRecording` writes anything. The
+    // original order saved the bytes first and only then checked the sender,
+    // so a refused send still left an orphan Recording row behind — one no
+    // Mail references and nothing ever collects.
+    const senderId = req.dbUser?.id;
+    if (!senderId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
     const recipientId = req.params.recipientId;
+    if (!recipientId || typeof recipientId !== "string") {
+      res.status(400).json({ error: "Missing recipientId or body" });
+      return;
+    }
+
     const body = req.body;
     if (!Buffer.isBuffer(body) || body.length === 0) {
         res.status(400).json({ error: "Expected a non-empty application/octet-stream body" });
         return;
     }
 
-  if (!recipientId || typeof recipientId !== "string") {
-    res.status(400).json({ error: "Missing recipientId or body" });
-    return;
-  }
+    if (recipientId === senderId) {
+      res.status(400).json({ error: "You cannot send a letter to yourself" });
+      return;
+    }
+
+    // One letter in flight per direction. `received: false` is precisely the
+    // undelivered set — delivery flips it on, and `archived` is only ever set
+    // afterwards — so an already-delivered letter does not block the next
+    // one. Paired with the delivery pass archiving the old window as the new
+    // one lands, this is what keeps a recipient from ever holding two live
+    // letters from the same sender.
+    const inFlight = await prisma.mail.findFirst({
+      where: { senderId, recipientId, received: false },
+      select: { id: true },
+    });
+
+    if (inFlight) {
+      res.status(409).json({
+        error: "You've already sent them a letter that hasn't arrived yet — wait for it to be delivered.",
+      });
+      return;
+    }
 
   const recordingId = await saveRecording(body);
-  const senderId = req.dbUser?.id;
-  if (!senderId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
   const history = await checkMailHistory(senderId, recipientId);
   
   const mail = await prisma.mail.create({

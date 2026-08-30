@@ -164,11 +164,18 @@ export const openapiSpec = {
             },
           },
           "400": {
-            description: "Missing recipient or empty body",
+            description: "Missing recipient, empty body, or the recipient is the sender",
             content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
           },
           "401": {
             description: "Unauthorized",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
+          "409": {
+            description:
+              "An earlier letter to this recipient is still in flight (`received` is false). " +
+              "One letter at a time per direction, so the recipient never holds two live " +
+              "letters from the same sender.",
             content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
           },
         },
@@ -380,7 +387,17 @@ export const openapiSpec = {
               schema: {
                 type: "object",
                 required: ["username"],
-                properties: { username: { type: "string" } },
+                properties: {
+                  username: {
+                    type: "string",
+                    description:
+                      "3–24 characters after trimming; letters, numbers, dots, dashes and " +
+                      "underscores only. Stored trimmed.",
+                    minLength: 3,
+                    maxLength: 24,
+                    pattern: "^[a-zA-Z0-9._-]+$",
+                  },
+                },
               },
             },
           },
@@ -391,7 +408,15 @@ export const openapiSpec = {
             content: { "application/json": { schema: { $ref: "#/components/schemas/MailUser" } } },
           },
           "400": {
-            description: "Missing username",
+            description: "Missing username, or one that breaks the length/character rule",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
+          "404": {
+            description: "No MailUser with that id",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
+          },
+          "409": {
+            description: "That username is already taken by another account",
             content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } },
           },
         },

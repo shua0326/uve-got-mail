@@ -17,6 +17,24 @@ async function authHeaders(): Promise<HeadersInit> {
   return session ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
+/**
+ * Reads the explanation out of a failed response. The backend is not
+ * consistent about the key — mailController answers `{ error }` on its
+ * validation paths and `{ message }` on its 500 — so both are accepted, and
+ * the fallback stands in for a non-JSON body (a proxy error page, an empty
+ * 502) where there is nothing to read.
+ */
+async function backendError(res: Response, fallback: string): Promise<Error> {
+  try {
+    const body = await res.json();
+    const message = body?.error ?? body?.message;
+    if (typeof message === "string" && message.length > 0) return new Error(message);
+  } catch {
+    // Fall through to the fallback.
+  }
+  return new Error(fallback);
+}
+
 export interface GiphyImage {
   url: string;
   width: string;
@@ -59,7 +77,11 @@ export async function sendLetter(recipientId: string, blob: Blob): Promise<numbe
     headers: { "Content-Type": "application/octet-stream", ...(await authHeaders()) },
     body: blob,
   });
-  if (!res.ok) throw new Error(`Sending the letter failed (${res.status})`);
+  // The refusals worth reading are the ones the backend explains — sending to
+  // yourself, or sending again while an earlier letter is still in flight.
+  // A bare "Sending the letter failed (409)" tells the user nothing they can
+  // act on, so the server's own wording is what the toast shows.
+  if (!res.ok) throw await backendError(res, `Sending the letter failed (${res.status})`);
   const { id } = await res.json();
   return id as number;
 }
@@ -161,7 +183,10 @@ export async function updateUsername(userId: string, username: string): Promise<
     body: JSON.stringify({ username }),
   });
   if (res.status === 409) throw new UsernameTakenError();
-  if (!res.ok) throw new Error(`Couldn't save username (${res.status})`);
+  // The backend enforces the same length/character rule as `usernameProblem`,
+  // so a 400 here means the two copies have drifted. Showing the server's
+  // wording rather than a bare status code is what makes that visible.
+  if (!res.ok) throw await backendError(res, `Couldn't save username (${res.status})`);
   return (await res.json()) as AuthUser;
 }
 
@@ -230,12 +255,19 @@ export async function fetchFriendRequests(signal?: AbortSignal): Promise<FriendR
   return (await res.json()) as FriendRequestItem[];
 }
 
+/** What a send actually did. `friended` means the other person already had a
+ * request out to you and this call accepted it instead of queuing a second
+ * one, so the two of you are friends now rather than waiting on each other. */
+export interface SendFriendRequestResult {
+  friended: boolean;
+}
+
 /**
  * Look a username up and, if it exists, send it a friend request.
  * The lookup and the send are the same call — `sendFriendRequest` resolves
  * the username server-side and 404s when no such `MailUser` exists.
  */
-export async function sendFriendRequest(username: string): Promise<void> {
+export async function sendFriendRequest(username: string): Promise<SendFriendRequestResult> {
   const res = await fetch(`${API_BASE}/friends/send/${encodeURIComponent(username)}`, {
     method: "POST",
     headers: await authHeaders(),
@@ -244,6 +276,12 @@ export async function sendFriendRequest(username: string): Promise<void> {
     throw new FriendRequestError(`No user found with the username "${username}".`, 404);
   }
   if (!res.ok) throw await friendRequestError(res, `Couldn't send the friend request (${res.status})`);
+
+  // 201 is a request queued; 200 carries `friended` for the crossed-requests
+  // case. Reading the flag rather than the status keeps the two apart without
+  // the caller knowing either code.
+  const body = await res.json().catch(() => null);
+  return { friended: body?.friended === true };
 }
 
 export async function acceptFriendRequest(id: string): Promise<void> {

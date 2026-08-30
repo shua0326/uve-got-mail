@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from "../../database/prisma";
 import { addFriend } from '../../utils/mailUserUtils';
+import { usernameProblem } from '../../utils/usernameUtils';
 
 export async function getMailUser(req: Request, res: Response) {
     try {
@@ -32,12 +33,41 @@ export async function setUsername(req: Request, res: Response) {
             res.status(400).json({ message: "Username is required" });
             return;
         }
+
+        // Trimmed before validating *and* before storing. Both FE screens
+        // already trim, but a name saved with an edge space would be a
+        // different string from the one `GET /user/by-username/:username`
+        // matches, so its owner could not be found by the name they think
+        // they have.
+        const trimmed = username.trim();
+        const problem = usernameProblem(trimmed);
+        if (problem) {
+            res.status(400).json({ message: problem });
+            return;
+        }
+
         const updatedMailUser = await prisma.mailUser.update({
             where: { id: req.params.id },
-            data: { username },
+            data: { username: trimmed },
         });
         res.status(200).json(updatedMailUser);
     } catch (error) {
+        // `username` is unique in the schema, so a name someone else already
+        // holds arrives here as P2002. The FE has always expected 409 for it
+        // (`UsernameTakenError` in FE/src/api.ts) — answering with the generic
+        // 500 left that branch unreachable and showed "Couldn't save username
+        // (500)" for the one failure the user can actually do something about.
+        const code = (error as { code?: string }).code;
+        if (code === 'P2002') {
+            res.status(409).json({ message: "That username is already taken" });
+            return;
+        }
+        // P2025: `update` found no MailUser with that id.
+        if (code === 'P2025') {
+            res.status(404).json({ message: "Mail user not found" });
+            return;
+        }
+        console.error("[user] setUsername failed:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
