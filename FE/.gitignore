@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 .vercel
 .env*
+# ...but the template has no secrets in it and should be committed.
+!.env.example
