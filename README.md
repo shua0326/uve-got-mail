@@ -5,7 +5,7 @@
 🔗 **[Live demo](https://uve-got-mail-frontend-ami7.onrender.com)** · Built at **SYNCS Hackathon 2026**
 
 <p align="center">
-  <img src="FE/src/assets/hero.png" alt="uve got mail!" width="640">
+  <img src="FE/src/assets/login.png" alt="uve got mail! — the sign-in screen" width="560">
 </p>
 
 ---
