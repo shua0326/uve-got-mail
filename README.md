@@ -198,4 +198,4 @@ Rewrite rules reproduce the Vite dev proxy in production, so the frontend's rela
 
 ---
 
-Built in two days at **SYNCS Hackathon 2026**.
+Built in 24 hours at **SYNCS Hackathon 2026**.
